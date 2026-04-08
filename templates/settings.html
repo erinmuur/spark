@@ -69,13 +69,11 @@
         <label>Example hooks
           <textarea name="example_hooks" rows="3">{{ f.example_hooks or '' }}</textarea>
         </label>
-        <div style="display:flex; gap:0.5rem;">
-          <button type="submit" class="secondary">Save changes</button>
-          <form method="post" action="/frameworks/{{ f.id }}/delete" style="display:inline;">
-            <button type="submit" class="outline contrast"
-              onclick="return confirm('Delete this framework?')">Delete</button>
-          </form>
-        </div>
+        <button type="submit" class="secondary">Save changes</button>
+      </form>
+      <form method="post" action="/frameworks/{{ f.id }}/delete" style="margin-top:0.5rem;">
+        <button type="submit" class="outline contrast"
+          onclick="return confirm('Delete this framework?')">Delete</button>
       </form>
     </details>
   </div>
