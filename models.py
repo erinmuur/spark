@@ -57,6 +57,14 @@ class Campaign(db.Model):
     visual_notes = db.Column(db.Text)
     cta = db.Column(db.Text)
     status = db.Column(db.String(20), default='Drafting')  # Drafting, Pitching, Assigned, Complete
+    # Posted video metrics
+    posted_url = db.Column(db.String)
+    posted_at = db.Column(db.DateTime)
+    views = db.Column(db.Integer)
+    likes = db.Column(db.Integer)
+    comments = db.Column(db.Integer)
+    shares = db.Column(db.Integer)
+    saves = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

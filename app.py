@@ -17,6 +17,26 @@ app.secret_key = 'spark-secret-key'
 db.init_app(app)
 
 
+def migrate_db():
+    """Add new columns to existing tables without dropping data."""
+    new_columns = [
+        ('campaign', 'posted_url', 'TEXT'),
+        ('campaign', 'posted_at', 'DATETIME'),
+        ('campaign', 'views', 'INTEGER'),
+        ('campaign', 'likes', 'INTEGER'),
+        ('campaign', 'comments', 'INTEGER'),
+        ('campaign', 'shares', 'INTEGER'),
+        ('campaign', 'saves', 'INTEGER'),
+    ]
+    with db.engine.connect() as conn:
+        for table, col, col_type in new_columns:
+            try:
+                conn.execute(db.text(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}'))
+                conn.commit()
+            except Exception:
+                pass  # Column already exists
+
+
 def seed_db():
     """Seed default frameworks and products if tables are empty."""
     if Framework.query.count() == 0:
@@ -277,6 +297,57 @@ def campaign_status(id):
 
 
 # ---------------------------------------------------------------------------
+# Analytics
+# ---------------------------------------------------------------------------
+
+@app.route('/analytics')
+def analytics():
+    product_filter = request.args.get('product_id', type=int)
+    query = Campaign.query.filter(Campaign.posted_at.isnot(None))
+    if product_filter:
+        query = query.filter_by(product_id=product_filter)
+    posted = query.order_by(Campaign.views.desc().nullslast()).all()
+    products = Product.query.order_by(Product.name).all()
+
+    total_views = sum(c.views or 0 for c in posted)
+    total_likes = sum(c.likes or 0 for c in posted)
+    total_comments = sum(c.comments or 0 for c in posted)
+    best = max(posted, key=lambda c: c.views or 0) if posted else None
+
+    return render_template('analytics.html', posted=posted, products=products,
+                           product_filter=product_filter, total_views=total_views,
+                           total_likes=total_likes, total_comments=total_comments, best=best)
+
+
+@app.route('/campaigns/<int:id>/metrics', methods=['POST'])
+def campaign_metrics(id):
+    campaign = Campaign.query.get_or_404(id)
+    campaign.posted_url = request.form.get('posted_url', '').strip() or None
+    posted_at_str = request.form.get('posted_at', '').strip()
+    if posted_at_str:
+        try:
+            campaign.posted_at = datetime.strptime(posted_at_str, '%Y-%m-%d')
+        except ValueError:
+            pass
+
+    def intval(key):
+        v = request.form.get(key, '').strip()
+        return int(v) if v.isdigit() else None
+
+    campaign.views = intval('views')
+    campaign.likes = intval('likes')
+    campaign.comments = intval('comments')
+    campaign.shares = intval('shares')
+    campaign.saves = intval('saves')
+    campaign.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    if request.headers.get('HX-Request'):
+        return '<span class="saved-notice">Metrics saved ✓</span>'
+    return redirect(url_for('campaign_detail', id=id))
+
+
+# ---------------------------------------------------------------------------
 # Internal: ingest endpoint (used by bot.py via direct DB access instead)
 # ---------------------------------------------------------------------------
 
@@ -326,5 +397,6 @@ def ingest():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        migrate_db()
         seed_db()
     app.run(port=5003, debug=True)

@@ -105,6 +105,56 @@
         <button type="submit" class="contrast outline">Regenerate ↻</button>
       </form>
     </details>
+
+    <hr style="margin:1.25rem 0;" />
+
+    <!-- Posted video metrics -->
+    <details {% if campaign.posted_at %}open{% endif %}>
+      <summary style="font-size:0.9rem; font-weight:600; cursor:pointer;">
+        Posted video metrics
+        {% if campaign.views is not none %}
+          <span style="font-weight:400; color:var(--pico-muted-color); font-size:0.8rem; margin-left:0.5rem;">
+            {{ "{:,}".format(campaign.views) }} views
+          </span>
+        {% endif %}
+      </summary>
+      <form hx-post="/campaigns/{{ campaign.id }}/metrics"
+            hx-target="#metrics-save-notice"
+            hx-swap="innerHTML"
+            style="margin-top:0.75rem;">
+        <label style="font-size:0.85rem;">
+          Posted video URL
+          <input type="url" name="posted_url" value="{{ campaign.posted_url or '' }}"
+                 placeholder="https://www.tiktok.com/@..." />
+        </label>
+        <label style="font-size:0.85rem;">
+          Date posted
+          <input type="date" name="posted_at"
+                 value="{{ campaign.posted_at.strftime('%Y-%m-%d') if campaign.posted_at else '' }}" />
+        </label>
+        <div class="grid" style="grid-template-columns:1fr 1fr; gap:0.5rem;">
+          <label style="font-size:0.85rem;">Views
+            <input type="number" name="views" value="{{ campaign.views or '' }}" placeholder="0" min="0" />
+          </label>
+          <label style="font-size:0.85rem;">Likes
+            <input type="number" name="likes" value="{{ campaign.likes or '' }}" placeholder="0" min="0" />
+          </label>
+          <label style="font-size:0.85rem;">Comments
+            <input type="number" name="comments" value="{{ campaign.comments or '' }}" placeholder="0" min="0" />
+          </label>
+          <label style="font-size:0.85rem;">Shares
+            <input type="number" name="shares" value="{{ campaign.shares or '' }}" placeholder="0" min="0" />
+          </label>
+          <label style="font-size:0.85rem;">Saves
+            <input type="number" name="saves" value="{{ campaign.saves or '' }}" placeholder="0" min="0" />
+          </label>
+        </div>
+        <div style="display:flex; align-items:center; gap:1rem; margin-top:0.25rem;">
+          <button type="submit" class="secondary">Save metrics</button>
+          <span id="metrics-save-notice"></span>
+        </div>
+      </form>
+    </details>
   </div>
 
 </div>

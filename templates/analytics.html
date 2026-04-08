@@ -2,6 +2,127 @@
 {% block title %}Analytics — Spark{% endblock %}
 
 {% block content %}
-<h2>Analytics</h2>
-<p style="color:var(--pico-muted-color);">Coming soon — let us know what metrics matter most to you.</p>
+<div style="margin-bottom:1.25rem;">
+  <h2 style="margin:0 0 1rem;">Analytics</h2>
+  <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+    <small style="color:var(--pico-muted-color); white-space:nowrap;">Product:</small>
+    <a href="/analytics" class="filter-pill {% if not product_filter %}active{% endif %}">All</a>
+    {% for p in products %}
+    <a href="/analytics?product_id={{ p.id }}"
+       class="filter-pill {% if product_filter == p.id %}active{% endif %}">{{ p.name }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if not posted %}
+<div style="text-align:center; padding:4rem 0; color:var(--pico-muted-color);">
+  <p style="font-size:2rem;">📊</p>
+  <p>No posted metrics yet. Open a campaign and log its performance under "Posted video metrics".</p>
+</div>
+{% else %}
+
+<!-- Summary strip -->
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:1rem; margin-bottom:2rem;">
+  <div class="stat-card">
+    <div class="stat-value">{{ posted|length }}</div>
+    <div class="stat-label">Videos posted</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ "{:,}".format(total_views) }}</div>
+    <div class="stat-label">Total views</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ "{:,}".format(total_likes) }}</div>
+    <div class="stat-label">Total likes</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ "{:,}".format(total_comments) }}</div>
+    <div class="stat-label">Total comments</div>
+  </div>
+  {% if best %}
+  <div class="stat-card" style="grid-column: span 2;">
+    <div class="stat-label" style="margin-bottom:0.25rem;">Top performer</div>
+    <div style="font-weight:600; font-size:0.95rem;">
+      {{ best.product.name }} —
+      {% if best.video.creator %}@{{ best.video.creator }}{% else %}{{ best.video.platform }}{% endif %}
+    </div>
+    <div style="font-size:0.85rem; color:var(--pico-muted-color);">
+      {{ "{:,}".format(best.views) }} views
+      {% if best.posted_url %}·
+        <a href="{{ best.posted_url }}" target="_blank">View post ↗</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Performance table -->
+<table>
+  <thead>
+    <tr>
+      <th>Product</th>
+      <th>Creator</th>
+      <th>Framework</th>
+      <th style="text-align:right;">Views</th>
+      <th style="text-align:right;">Likes</th>
+      <th style="text-align:right;">Comments</th>
+      <th style="text-align:right;">Shares</th>
+      <th style="text-align:right;">Saves</th>
+      <th>Posted</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in posted %}
+    <tr>
+      <td><strong>{{ c.product.name }}</strong></td>
+      <td style="font-size:0.85rem;">
+        {% if c.video.creator %}@{{ c.video.creator }}{% else %}
+          <span class="badge badge-{{ c.video.platform or 'unknown' }}">{{ c.video.platform or '?' }}</span>
+        {% endif %}
+      </td>
+      <td style="font-size:0.8rem;">
+        {% if c.video.framework %}
+          <span class="framework-tag">{{ c.video.framework.name }}</span>
+        {% else %}—{% endif %}
+      </td>
+      <td style="text-align:right; font-weight:600;">{{ "{:,}".format(c.views) if c.views is not none else '—' }}</td>
+      <td style="text-align:right;">{{ "{:,}".format(c.likes) if c.likes is not none else '—' }}</td>
+      <td style="text-align:right;">{{ "{:,}".format(c.comments) if c.comments is not none else '—' }}</td>
+      <td style="text-align:right;">{{ "{:,}".format(c.shares) if c.shares is not none else '—' }}</td>
+      <td style="text-align:right;">{{ "{:,}".format(c.saves) if c.saves is not none else '—' }}</td>
+      <td style="font-size:0.8rem; white-space:nowrap;">
+        {{ c.posted_at.strftime('%b %d, %Y') if c.posted_at else '—' }}
+      </td>
+      <td>
+        <a href="/campaigns/{{ c.id }}" style="font-size:0.8rem;">Brief ↗</a>
+        {% if c.posted_url %}
+          · <a href="{{ c.posted_url }}" target="_blank" style="font-size:0.8rem;">Post ↗</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<style>
+  .stat-card {
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+  }
+  .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 0.25rem;
+  }
+  .stat-label {
+    font-size: 0.8rem;
+    color: var(--pico-muted-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+</style>
 {% endblock %}
