@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from models import db, Video, Framework, Product, Campaign, DEFAULT_FRAMEWORKS, DEFAULT_PRODUCTS
+from models import db, Video, Framework, Product, Campaign, DEFAULT_FRAMEWORKS, DEFAULT_PRODUCTS, _STALE_DEFAULT_FRAMEWORKS
 import ai
 
 app = Flask(__name__)
@@ -50,9 +50,15 @@ def migrate_db():
 
 def seed_db():
     """Seed default frameworks and products if tables are empty."""
-    if Framework.query.count() == 0:
+    # Remove stale default frameworks from the original seed
+    stale = Framework.query.filter(Framework.name.in_(_STALE_DEFAULT_FRAMEWORKS)).all()
+    for f in stale:
+        db.session.delete(f)
+
+    if Framework.query.count() == len(stale):
         for f in DEFAULT_FRAMEWORKS:
-            db.session.add(Framework(**f))
+            if not Framework.query.filter_by(name=f['name']).first():
+                db.session.add(Framework(**f))
 
     if Product.query.count() == 0:
         for p in DEFAULT_PRODUCTS:
