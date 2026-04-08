@@ -10,7 +10,14 @@ from models import db, Video, Framework, Product, Campaign, DEFAULT_FRAMEWORKS, 
 import ai
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///spark.db')
+
+# Ensure data directory exists (needed for production SQLite path)
+_db_url = os.environ.get('DATABASE_URL', 'sqlite:///spark.db')
+if _db_url.startswith('sqlite:////'):
+    _db_dir = os.path.dirname(_db_url.replace('sqlite:////', '/'))
+    os.makedirs(_db_dir, exist_ok=True)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'spark-secret-key'
 
