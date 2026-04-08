@@ -9,6 +9,15 @@ services:
         dockerfile: "Dockerfile"
         context: "."
     expose: true
+    processes:
+      web: 1
+      bot: 1
     env:
+      SLACK_BOT_TOKEN: "${ENV.SLACK_BOT_TOKEN}"
+      SLACK_APP_TOKEN: "${ENV.SLACK_APP_TOKEN}"
       ANTHROPIC_API_KEY: "${ENV.ANTHROPIC_API_KEY}"
       SLACK_CHANNEL_ID: "${ENV.SLACK_CHANNEL_ID}"
+      DATABASE_URL: "sqlite:////app/data/spark.db"
+    source_mounts:
+      - source: "./data"
+        target: "/app/data"
