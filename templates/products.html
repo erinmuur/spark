@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Products — Spark{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem;">
+  <h2 style="margin:0 0 0.25rem;">Product Profiles</h2>
+  <p style="color:var(--pico-muted-color); margin:0; font-size:0.9rem;">These descriptions inform Claude when generating campaign briefs.</p>
+</div>
+
+<div class="product-grid">
+  {% for product in products %}
+  <div class="product-card">
+    <h3>{{ product.name }}</h3>
+    <form hx-post="/products/{{ product.id }}/edit"
+          hx-target="#save-notice-{{ product.id }}"
+          hx-swap="innerHTML">
+      <label>Description
+        <textarea name="description" rows="3" placeholder="What is {{ product.name }}? What does it do?">{{ product.description or '' }}</textarea>
+      </label>
+      <label>Key benefits
+        <textarea name="key_benefits" rows="3" placeholder="What are the main benefits users experience?">{{ product.key_benefits or '' }}</textarea>
+      </label>
+      <label>Target audience
+        <textarea name="target_audience" rows="2" placeholder="Who is this for?">{{ product.target_audience or '' }}</textarea>
+      </label>
+      <label>Unique selling point
+        <textarea name="usp" rows="2" placeholder="What makes this different from alternatives?">{{ product.usp or '' }}</textarea>
+      </label>
+      <label>Tone / voice notes
+        <textarea name="voice_notes" rows="2" placeholder="Any style, tone, or voice guidance?">{{ product.voice_notes or '' }}</textarea>
+      </label>
+      <div style="display:flex; align-items:center; gap:1rem;">
+        <button type="submit" class="secondary">Save</button>
+        <span id="save-notice-{{ product.id }}"></span>
+      </div>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

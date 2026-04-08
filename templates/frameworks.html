@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Frameworks — Spark{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.5rem;">
+  <h2 style="margin:0;">Video Frameworks</h2>
+</div>
+
+{% for f in frameworks %}
+<div class="framework-card" id="framework-{{ f.id }}">
+  <details>
+    <summary>{{ f.name }}</summary>
+    <p style="color:var(--pico-muted-color); margin-top:0.75rem;">{{ f.description }}</p>
+
+    <form method="post" action="/frameworks/{{ f.id }}/edit" style="margin-top:1rem;">
+      <div class="grid">
+        <label>Name<input type="text" name="name" value="{{ f.name }}" required /></label>
+      </div>
+      <label>Description
+        <textarea name="description" rows="2">{{ f.description or '' }}</textarea>
+      </label>
+      <label>Structure (beat-by-beat)
+        <textarea name="structure" rows="4">{{ f.structure or '' }}</textarea>
+      </label>
+      <label>Example hooks
+        <textarea name="example_hooks" rows="3">{{ f.example_hooks or '' }}</textarea>
+      </label>
+      <div style="display:flex; gap:0.5rem;">
+        <button type="submit" class="secondary">Save changes</button>
+        <form method="post" action="/frameworks/{{ f.id }}/delete" style="display:inline;">
+          <button type="submit" class="outline contrast"
+            onclick="return confirm('Delete this framework?')">Delete</button>
+        </form>
+      </div>
+    </form>
+  </details>
+</div>
+{% endfor %}
+
+<hr />
+
+<h3>Add a Framework</h3>
+<form method="post" action="/frameworks/new">
+  <div class="grid">
+    <label>Name<input type="text" name="name" placeholder="e.g. Curiosity Gap" required /></label>
+  </div>
+  <label>Description
+    <textarea name="description" rows="2" placeholder="What makes this framework distinct?"></textarea>
+  </label>
+  <label>Structure
+    <textarea name="structure" rows="4" placeholder="1. Beat one&#10;2. Beat two&#10;3. Beat three"></textarea>
+  </label>
+  <label>Example hooks
+    <textarea name="example_hooks" rows="3" placeholder="One example hook per line"></textarea>
+  </label>
+  <button type="submit">Add Framework</button>
+</form>
+{% endblock %}

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Spark{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    :root {
+      --spark-orange: #f97316;
+      --spark-orange-light: #fff7ed;
+    }
+
+    body { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
+
+    nav.top-nav {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--pico-muted-border-color);
+      margin-bottom: 2rem;
+    }
+    nav.top-nav .brand {
+      font-weight: 700;
+      font-size: 1.2rem;
+      text-decoration: none;
+      color: var(--spark-orange);
+      letter-spacing: -0.5px;
+    }
+    nav.top-nav a {
+      text-decoration: none;
+      color: var(--pico-muted-color);
+      font-size: 0.9rem;
+    }
+    nav.top-nav a:hover, nav.top-nav a.active { color: var(--pico-color); }
+
+    /* Platform badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-tiktok   { background: #010101; color: #fff; }
+    .badge-instagram { background: linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); color: #fff; }
+    .badge-twitter  { background: #000; color: #fff; }
+    .badge-unknown  { background: #ccc; color: #555; }
+    .badge-draft    { background: #fef3c7; color: #92400e; }
+    .badge-final    { background: #d1fae5; color: #065f46; }
+
+    /* Framework tag */
+    .framework-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      background: var(--spark-orange-light);
+      color: var(--spark-orange);
+      font-weight: 500;
+    }
+
+    /* Video card grid */
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+    .video-card {
+      border: 1px solid var(--pico-muted-border-color);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .video-card .thumbnail {
+      width: 100%;
+      aspect-ratio: 9/16;
+      object-fit: cover;
+      background: #f3f4f6;
+    }
+    .video-card .thumbnail-placeholder {
+      width: 100%;
+      aspect-ratio: 9/16;
+      background: #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+    }
+    .video-card .card-body {
+      padding: 0.75rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .video-card .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+    .video-card .creator {
+      font-size: 0.8rem;
+      color: var(--pico-muted-color);
+    }
+    .video-card .caption {
+      font-size: 0.8rem;
+      color: var(--pico-color);
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      flex: 1;
+    }
+    .video-card .card-footer {
+      margin-top: auto;
+      padding-top: 0.5rem;
+    }
+    .video-card button { margin-bottom: 0; width: 100%; }
+
+    /* Modal overlay */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #modal-overlay.open { display: flex; }
+    #modal-box {
+      background: var(--pico-background-color);
+      border-radius: 10px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    #modal-box h3 { margin-top: 0; }
+
+    /* Campaign detail */
+    .brief-section { margin-bottom: 1.5rem; }
+    .brief-section h4 { margin-bottom: 0.4rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--pico-muted-color); }
+    .brief-section textarea { margin-bottom: 0; }
+
+    /* Saved notice */
+    .saved-notice { color: #065f46; font-size: 0.85rem; font-weight: 500; }
+
+    /* Status area */
+    #status-area { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .status-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+    .status-draft { background: #fef3c7; color: #92400e; }
+    .status-final { background: #d1fae5; color: #065f46; }
+
+    /* Frameworks */
+    .framework-card { border: 1px solid var(--pico-muted-border-color); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+    .framework-card summary { font-weight: 600; cursor: pointer; }
+
+    /* Products */
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
+    .product-card { border: 1px solid var(--pico-muted-border-color); border-radius: 8px; padding: 1.25rem; }
+    .product-card h3 { margin-top: 0; margin-bottom: 1rem; }
+
+    /* htmx loading indicator */
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator { display: inline; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav">
+    <a class="brand" href="/">⚡ Spark</a>
+    <a href="/" class="{% if request.endpoint == 'feed' %}active{% endif %}">Feed</a>
+    <a href="/frameworks" class="{% if request.endpoint == 'frameworks' %}active{% endif %}">Frameworks</a>
+    <a href="/products" class="{% if request.endpoint == 'products' %}active{% endif %}">Products</a>
+    <a href="/campaigns" class="{% if request.endpoint in ['campaigns', 'campaign_detail'] %}active{% endif %}">Campaigns</a>
+  </nav>
+
+  {% block content %}{% endblock %}
+
+  <!-- Modal overlay (populated by HTMX) -->
+  <div id="modal-overlay" onclick="if(event.target===this) closeModal()">
+    <div id="modal-box">
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <script>
+    function openModal() {
+      document.getElementById('modal-overlay').classList.add('open');
+    }
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('open');
+      document.getElementById('modal-content').innerHTML = '';
+    }
+
+    // After HTMX loads modal content, open the overlay
+    document.addEventListener('htmx:afterSwap', function(e) {
+      if (e.detail.target.id === 'modal-content') {
+        openModal();
+      }
+    });
+
+    // Handle HX-Redirect responses
+    document.addEventListener('htmx:responseError', function(e) {
+      console.error('HTMX error', e.detail);
+    });
+    document.body.addEventListener('htmx:beforeSwap', function(e) {
+      if (e.detail.xhr.status === 204) {
+        var redirect = e.detail.xhr.getResponseHeader('HX-Redirect');
+        if (redirect) {
+          window.location.href = redirect;
+          e.detail.shouldSwap = false;
+        }
+      }
+    });
+  </script>
+</body>
+</html>

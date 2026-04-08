@@ -1,0 +1,7 @@
+flask
+flask-sqlalchemy
+anthropic
+slack-bolt
+yt-dlp
+python-dotenv
+requests

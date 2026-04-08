@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Campaigns — Spark{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.5rem;">
+  <h2 style="margin:0;">Campaigns</h2>
+  <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+    <small style="color:var(--pico-muted-color);">Filter by product:</small>
+    <a href="/campaigns" class="badge {% if not product_filter %}badge-tiktok{% else %}badge-unknown{% endif %}" style="text-decoration:none;">All</a>
+    {% for p in products %}
+    <a href="/campaigns?product_id={{ p.id }}"
+       class="badge {% if product_filter == p.id %}badge-tiktok{% else %}badge-unknown{% endif %}"
+       style="text-decoration:none;">{{ p.name }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if not campaigns %}
+<div style="text-align:center; padding:4rem 0; color:var(--pico-muted-color);">
+  <p style="font-size:2rem;">✨</p>
+  <p>No campaigns yet. Go to the Feed and click "Create Campaign" on any video.</p>
+</div>
+{% else %}
+<table>
+  <thead>
+    <tr>
+      <th>Video</th>
+      <th>Product</th>
+      <th>Concept</th>
+      <th>Status</th>
+      <th>Created</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in campaigns %}
+    <tr>
+      <td style="max-width:160px;">
+        <div style="font-size:0.8rem;">
+          <span class="badge badge-{{ c.video.platform or 'unknown' }}">{{ c.video.platform or '?' }}</span>
+          {% if c.video.creator %}
+          <div style="margin-top:0.25rem; color:var(--pico-muted-color);">@{{ c.video.creator }}</div>
+          {% endif %}
+        </div>
+      </td>
+      <td><strong>{{ c.product.name }}</strong></td>
+      <td style="max-width:300px; font-size:0.85rem;">
+        {% if c.concept %}
+          {{ c.concept[:140] }}{% if c.concept|length > 140 %}…{% endif %}
+        {% else %}
+          <em style="color:var(--pico-muted-color);">No concept yet</em>
+        {% endif %}
+      </td>
+      <td>
+        <span class="status-badge status-{{ c.status }}">
+          {{ 'Final' if c.status == 'final' else 'Draft' }}
+        </span>
+      </td>
+      <td style="font-size:0.8rem; white-space:nowrap;">{{ c.created_at.strftime('%b %d') }}</td>
+      <td><a href="/campaigns/{{ c.id }}" role="button" class="outline secondary" style="padding:0.3rem 0.75rem; font-size:0.8rem;">Open</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

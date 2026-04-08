@@ -1,0 +1,41 @@
+<h3 style="margin-top:0;">Create Campaign</h3>
+
+<div style="margin-bottom:1rem; padding:0.75rem; background:var(--pico-card-background-color); border-radius:6px; font-size:0.85rem;">
+  <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.25rem;">
+    <span class="badge badge-{{ video.platform or 'unknown' }}">{{ video.platform or '?' }}</span>
+    {% if video.creator %}<strong>@{{ video.creator }}</strong>{% endif %}
+    {% if video.framework %}<span class="framework-tag">{{ video.framework.name }}</span>{% endif %}
+  </div>
+  {% if video.caption %}
+  <div style="color:var(--pico-muted-color); font-size:0.8rem;">
+    {{ video.caption[:160] }}{% if video.caption|length > 160 %}…{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<form hx-post="/campaigns"
+      hx-target="#modal-content"
+      hx-swap="innerHTML">
+  <input type="hidden" name="video_id" value="{{ video.id }}" />
+
+  <label>Product
+    <select name="product_id" required>
+      {% for p in products %}
+      <option value="{{ p.id }}">{{ p.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label>Context / focus areas
+    <textarea name="context_notes" rows="4"
+              placeholder="e.g. Focus on the highlights feature, lean into the 'remember everything you read' angle, target avid non-fiction readers…"></textarea>
+  </label>
+
+  <div style="display:flex; gap:0.75rem; margin-top:0.5rem;">
+    <button type="submit">
+      <span class="htmx-indicator spinner"></span>
+      Generate Brief
+    </button>
+    <button type="button" class="outline secondary" onclick="closeModal()">Cancel</button>
+  </div>
+</form>

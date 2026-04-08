@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Campaign — Spark{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:0.5rem;">
+  <a href="/campaigns" style="font-size:0.85rem; color:var(--pico-muted-color);">← Campaigns</a>
+</div>
+
+<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+  <div>
+    <h2 style="margin:0 0 0.25rem;">{{ campaign.product.name }} Campaign</h2>
+    <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--pico-muted-color);">
+      <span class="badge badge-{{ campaign.video.platform or 'unknown' }}">{{ campaign.video.platform or '?' }}</span>
+      {% if campaign.video.creator %}@{{ campaign.video.creator }}{% endif %}
+      {% if campaign.video.framework %}· <span class="framework-tag">{{ campaign.video.framework.name }}</span>{% endif %}
+      · Created {{ campaign.created_at.strftime('%b %d, %Y') }}
+    </div>
+  </div>
+  <div id="status-area">
+    <span class="status-badge status-{{ campaign.status }}">{{ 'Final' if campaign.status == 'final' else 'Draft' }}</span>
+    <button class="outline {% if campaign.status == 'final' %}secondary{% else %}primary{% endif %}"
+            style="margin:0;"
+            hx-post="/campaigns/{{ campaign.id }}/status"
+            hx-vals='{"status": "{{ "draft" if campaign.status == "final" else "final" }}"}'
+            hx-target="#status-area"
+            hx-swap="innerHTML">
+      {{ 'Mark as Draft' if campaign.status == 'final' else 'Mark as Final' }}
+    </button>
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 340px; gap:2rem; align-items:start;">
+
+  <!-- Left: editable brief -->
+  <div>
+    <form hx-post="/campaigns/{{ campaign.id }}/edit"
+          hx-target="#edit-save-notice"
+          hx-swap="innerHTML">
+
+      <div class="brief-section">
+        <h4>Concept</h4>
+        <textarea name="concept" rows="4">{{ campaign.concept or '' }}</textarea>
+      </div>
+
+      <div class="brief-section">
+        <h4>Hook options</h4>
+        <textarea name="hook" rows="4">{{ campaign.hook or '' }}</textarea>
+      </div>
+
+      <div class="brief-section">
+        <h4>Script Outline</h4>
+        <textarea name="script_outline" rows="8">{{ campaign.script_outline or '' }}</textarea>
+      </div>
+
+      <div class="brief-section">
+        <h4>Visual / Editing Notes</h4>
+        <textarea name="visual_notes" rows="4">{{ campaign.visual_notes or '' }}</textarea>
+      </div>
+
+      <div class="brief-section">
+        <h4>CTA</h4>
+        <textarea name="cta" rows="3">{{ campaign.cta or '' }}</textarea>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:1rem;">
+        <button type="submit" class="secondary">Save changes</button>
+        <span id="edit-save-notice"></span>
+      </div>
+    </form>
+  </div>
+
+  <!-- Right: video reference + regenerate -->
+  <div>
+    <div style="border:1px solid var(--pico-muted-border-color); border-radius:8px; overflow:hidden; margin-bottom:1.25rem;">
+      {% if campaign.video.thumbnail_url %}
+        <img src="{{ campaign.video.thumbnail_url }}" style="width:100%; display:block;"
+             onerror="this.style.display='none';" />
+      {% endif %}
+      <div style="padding:0.75rem;">
+        <div style="font-size:0.8rem; color:var(--pico-muted-color); margin-bottom:0.25rem;">Inspiration video</div>
+        {% if campaign.video.creator %}
+          <div style="font-weight:600; font-size:0.9rem;">@{{ campaign.video.creator }}</div>
+        {% endif %}
+        {% if campaign.video.caption %}
+          <div style="font-size:0.8rem; margin-top:0.25rem; color:var(--pico-muted-color);">
+            {{ campaign.video.caption[:200] }}{% if campaign.video.caption|length > 200 %}…{% endif %}
+          </div>
+        {% endif %}
+        <a href="{{ campaign.video.url }}" target="_blank" style="font-size:0.8rem; display:inline-block; margin-top:0.5rem;">
+          View original ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Regenerate -->
+    <details>
+      <summary style="font-size:0.9rem; font-weight:600; cursor:pointer;">Regenerate with Claude</summary>
+      <form method="post" action="/campaigns/{{ campaign.id }}/regenerate" style="margin-top:0.75rem;">
+        <label style="font-size:0.85rem;">
+          Updated context / focus areas
+          <textarea name="context_notes" rows="4"
+                    placeholder="e.g. Focus on the highlights feature, target power readers, lean into the delight angle…">{{ campaign.context_notes or '' }}</textarea>
+        </label>
+        <small style="color:var(--pico-muted-color); font-size:0.75rem; display:block; margin-bottom:0.75rem;">
+          This will replace the current brief. Your edits won't be lost until you save.
+        </small>
+        <button type="submit" class="contrast outline">Regenerate ↻</button>
+      </form>
+    </details>
+  </div>
+
+</div>
+{% endblock %}
