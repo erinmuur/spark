@@ -16,6 +16,10 @@ app.secret_key = 'spark-secret-key'
 
 db.init_app(app)
 
+# Initialize DB on startup (runs under both gunicorn and flask dev server)
+with app.app_context():
+    db.create_all()
+
 
 def migrate_db():
     """Add new columns to existing tables without dropping data."""
@@ -395,9 +399,9 @@ def ingest():
     return jsonify({'status': 'created', 'id': video.id})
 
 
+with app.app_context():
+    migrate_db()
+    seed_db()
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        migrate_db()
-        seed_db()
     app.run(port=5003, debug=True)
