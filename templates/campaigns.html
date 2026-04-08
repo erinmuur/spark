@@ -2,23 +2,36 @@
 {% block title %}Campaigns — Spark{% endblock %}
 
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.5rem;">
-  <h2 style="margin:0;">Campaigns</h2>
-  <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-    <small style="color:var(--pico-muted-color);">Filter by product:</small>
-    <a href="/campaigns" class="badge {% if not product_filter %}badge-tiktok{% else %}badge-unknown{% endif %}" style="text-decoration:none;">All</a>
-    {% for p in products %}
-    <a href="/campaigns?product_id={{ p.id }}"
-       class="badge {% if product_filter == p.id %}badge-tiktok{% else %}badge-unknown{% endif %}"
-       style="text-decoration:none;">{{ p.name }}</a>
-    {% endfor %}
+<div style="margin-bottom:1.25rem;">
+  <h2 style="margin:0 0 1rem;">Campaigns</h2>
+
+  <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-start;">
+    <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+      <small style="color:var(--pico-muted-color); white-space:nowrap;">Product:</small>
+      <a href="/campaigns{% if status_filter %}?status={{ status_filter }}{% endif %}"
+         class="filter-pill {% if not product_filter %}active{% endif %}">All</a>
+      {% for p in products %}
+      <a href="/campaigns?product_id={{ p.id }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+         class="filter-pill {% if product_filter == p.id %}active{% endif %}">{{ p.name }}</a>
+      {% endfor %}
+    </div>
+
+    <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+      <small style="color:var(--pico-muted-color); white-space:nowrap;">Status:</small>
+      <a href="/campaigns{% if product_filter %}?product_id={{ product_filter }}{% endif %}"
+         class="filter-pill {% if not status_filter %}active{% endif %}">All</a>
+      {% for s in statuses %}
+      <a href="/campaigns?status={{ s }}{% if product_filter %}&product_id={{ product_filter }}{% endif %}"
+         class="filter-pill status-pill-{{ s.lower() }} {% if status_filter == s %}active{% endif %}">{{ s }}</a>
+      {% endfor %}
+    </div>
   </div>
 </div>
 
 {% if not campaigns %}
 <div style="text-align:center; padding:4rem 0; color:var(--pico-muted-color);">
   <p style="font-size:2rem;">✨</p>
-  <p>No campaigns yet. Go to the Feed and click "Create Campaign" on any video.</p>
+  <p>No campaigns yet. Go to Inspo and click "Create Campaign" on any video.</p>
 </div>
 {% else %}
 <table>
@@ -52,9 +65,7 @@
         {% endif %}
       </td>
       <td>
-        <span class="status-badge status-{{ c.status }}">
-          {{ 'Final' if c.status == 'final' else 'Draft' }}
-        </span>
+        <span class="status-badge status-{{ c.status.lower() }}">{{ c.status }}</span>
       </td>
       <td style="font-size:0.8rem; white-space:nowrap;">{{ c.created_at.strftime('%b %d') }}</td>
       <td><a href="/campaigns/{{ c.id }}" role="button" class="outline secondary" style="padding:0.3rem 0.75rem; font-size:0.8rem;">Open</a></td>

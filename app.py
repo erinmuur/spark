@@ -46,14 +46,36 @@ def classify_in_background(video_id):
 
 
 # ---------------------------------------------------------------------------
-# Feed
+# Inspo
 # ---------------------------------------------------------------------------
 
+CAMPAIGN_STATUSES = ['Drafting', 'Pitching', 'Assigned', 'Complete']
+
 @app.route('/')
-def feed():
-    videos = Video.query.order_by(Video.created_at.desc()).all()
+def inspo():
+    q = request.args.get('q', '').strip()
+    query = Video.query
+    if q:
+        like = f'%{q}%'
+        query = query.filter(
+            db.or_(
+                Video.creator.ilike(like),
+                Video.caption.ilike(like),
+                Video.title.ilike(like),
+            )
+        )
+    videos = query.order_by(Video.created_at.desc()).all()
     frameworks = Framework.query.order_by(Framework.name).all()
-    return render_template('feed.html', videos=videos, frameworks=frameworks)
+    return render_template('inspo.html', videos=videos, frameworks=frameworks, q=q)
+
+
+# ---------------------------------------------------------------------------
+# Analytics (placeholder — content TBD based on desired metrics)
+# ---------------------------------------------------------------------------
+
+@app.route('/analytics')
+def analytics():
+    return render_template('analytics.html')
 
 
 # ---------------------------------------------------------------------------
@@ -168,19 +190,25 @@ def campaign_create():
 @app.route('/campaigns')
 def campaigns():
     product_filter = request.args.get('product_id', type=int)
+    status_filter = request.args.get('status', '').strip()
     query = Campaign.query.order_by(Campaign.created_at.desc())
     if product_filter:
         query = query.filter_by(product_id=product_filter)
+    if status_filter:
+        query = query.filter_by(status=status_filter)
     campaigns = query.all()
     products = Product.query.order_by(Product.name).all()
-    return render_template('campaigns.html', campaigns=campaigns, products=products, product_filter=product_filter)
+    return render_template('campaigns.html', campaigns=campaigns, products=products,
+                           product_filter=product_filter, status_filter=status_filter,
+                           statuses=CAMPAIGN_STATUSES)
 
 
 @app.route('/campaigns/<int:id>')
 def campaign_detail(id):
     campaign = Campaign.query.get_or_404(id)
     products = Product.query.order_by(Product.name).all()
-    return render_template('campaign_detail.html', campaign=campaign, products=products)
+    return render_template('campaign_detail.html', campaign=campaign, products=products,
+                           statuses=CAMPAIGN_STATUSES)
 
 
 @app.route('/campaigns/<int:id>/edit', methods=['POST'])
@@ -227,20 +255,23 @@ def campaign_regenerate(id):
 @app.route('/campaigns/<int:id>/status', methods=['POST'])
 def campaign_status(id):
     campaign = Campaign.query.get_or_404(id)
-    campaign.status = request.form.get('status', campaign.status)
+    new_status = request.form.get('status', campaign.status)
+    if new_status in CAMPAIGN_STATUSES:
+        campaign.status = new_status
     campaign.updated_at = datetime.utcnow()
     db.session.commit()
 
     if request.headers.get('HX-Request'):
-        label = 'Final' if campaign.status == 'final' else 'Draft'
-        btn_class = 'secondary' if campaign.status == 'final' else 'primary'
-        toggle_status = 'draft' if campaign.status == 'final' else 'final'
-        toggle_label = 'Mark as Draft' if campaign.status == 'final' else 'Mark as Final'
+        options = ''.join(
+            f'<option value="{s}" {"selected" if s == campaign.status else ""}>{s}</option>'
+            for s in CAMPAIGN_STATUSES
+        )
         return f'''
-        <span class="status-badge status-{campaign.status}">{label}</span>
-        <button class="outline {btn_class}" hx-post="/campaigns/{id}/status"
-                hx-vals='{{"status": "{toggle_status}"}}'
-                hx-target="#status-area" hx-swap="innerHTML">{toggle_label}</button>
+        <span class="status-badge status-{campaign.status.lower()}">{campaign.status}</span>
+        <select hx-post="/campaigns/{id}/status" hx-target="#status-area"
+                hx-swap="innerHTML" name="status" hx-trigger="change" style="width:auto;margin:0;">
+          {options}
+        </select>
         '''
     return redirect(url_for('campaign_detail', id=id))
 

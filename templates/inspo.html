@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Inspo — Spark{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.25rem; flex-wrap:wrap; gap:0.75rem;">
+  <h2 style="margin:0;">Inspo</h2>
+  <small style="color:var(--pico-muted-color);">{{ videos|length }} video{{ 's' if videos|length != 1 }}</small>
+</div>
+
+<form method="get" action="/" style="margin-bottom:1.5rem; display:flex; gap:0.5rem;">
+  <input type="search" name="q" value="{{ q or '' }}" placeholder="Search by creator, caption…" style="margin:0; flex:1;" />
+  <button type="submit" class="secondary" style="width:auto; margin:0;">Search</button>
+  {% if q %}<a href="/" role="button" class="outline secondary" style="margin:0;">Clear</a>{% endif %}
+</form>
+
+{% if not videos %}
+<div style="text-align:center; padding:4rem 0; color:var(--pico-muted-color);">
+  <p style="font-size:2rem;">📹</p>
+  {% if q %}
+    <p>No videos matching "{{ q }}".</p>
+  {% else %}
+    <p>No videos yet. Share a TikTok, Instagram, or Twitter link in your Slack channel to get started.</p>
+  {% endif %}
+</div>
+{% else %}
+<div class="video-grid">
+  {% for video in videos %}
+  <div class="video-card">
+    {% if video.thumbnail_url %}
+      <img class="thumbnail" src="{{ video.thumbnail_url }}" alt="{{ video.creator or 'Video' }}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+      <div class="thumbnail-placeholder" style="display:none;">
+        {% if video.platform == 'tiktok' %}🎵{% elif video.platform == 'instagram' %}📸{% else %}🐦{% endif %}
+      </div>
+    {% else %}
+      <div class="thumbnail-placeholder">
+        {% if video.platform == 'tiktok' %}🎵{% elif video.platform == 'instagram' %}📸{% else %}🐦{% endif %}
+      </div>
+    {% endif %}
+
+    <div class="card-body">
+      <div class="card-meta">
+        <span class="badge badge-{{ video.platform or 'unknown' }}">{{ video.platform or '?' }}</span>
+        {% if video.framework %}
+          <span class="framework-tag">{{ video.framework.name }}</span>
+        {% else %}
+          <span class="framework-tag" style="opacity:0.5;">Classifying…</span>
+        {% endif %}
+      </div>
+
+      {% if video.creator %}
+        <div class="creator">@{{ video.creator }}</div>
+      {% endif %}
+
+      {% if video.caption %}
+        <div class="caption">{{ video.caption }}</div>
+      {% endif %}
+
+      <div style="font-size:0.7rem; color:var(--pico-muted-color); margin-top:0.25rem;">
+        {{ video.created_at.strftime('%b %d, %Y') }}
+      </div>
+
+      <div class="card-footer">
+        <button class="secondary outline"
+          hx-get="/campaigns/new?video_id={{ video.id }}"
+          hx-target="#modal-content"
+          hx-swap="innerHTML">
+          Create Campaign
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -56,7 +56,7 @@ class Campaign(db.Model):
     script_outline = db.Column(db.Text)
     visual_notes = db.Column(db.Text)
     cta = db.Column(db.Text)
-    status = db.Column(db.String(20), default='draft')  # draft, final
+    status = db.Column(db.String(20), default='Drafting')  # Drafting, Pitching, Assigned, Complete
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

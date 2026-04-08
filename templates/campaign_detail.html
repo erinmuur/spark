@@ -17,15 +17,13 @@
     </div>
   </div>
   <div id="status-area">
-    <span class="status-badge status-{{ campaign.status }}">{{ 'Final' if campaign.status == 'final' else 'Draft' }}</span>
-    <button class="outline {% if campaign.status == 'final' %}secondary{% else %}primary{% endif %}"
-            style="margin:0;"
-            hx-post="/campaigns/{{ campaign.id }}/status"
-            hx-vals='{"status": "{{ "draft" if campaign.status == "final" else "final" }}"}'
-            hx-target="#status-area"
-            hx-swap="innerHTML">
-      {{ 'Mark as Draft' if campaign.status == 'final' else 'Mark as Final' }}
-    </button>
+    <span class="status-badge status-{{ campaign.status.lower() }}">{{ campaign.status }}</span>
+    <select hx-post="/campaigns/{{ campaign.id }}/status" hx-target="#status-area"
+            hx-swap="innerHTML" name="status" hx-trigger="change" style="width:auto; margin:0;">
+      {% for s in statuses %}
+      <option value="{{ s }}" {% if s == campaign.status %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
   </div>
 </div>
 
