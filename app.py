@@ -90,12 +90,15 @@ def inspo():
 
 
 # ---------------------------------------------------------------------------
-# Analytics (placeholder — content TBD based on desired metrics)
+# ---------------------------------------------------------------------------
+# Settings (combines Products + Frameworks)
 # ---------------------------------------------------------------------------
 
-@app.route('/analytics')
-def analytics():
-    return render_template('analytics.html')
+@app.route('/settings')
+def settings():
+    products = Product.query.order_by(Product.name).all()
+    frameworks = Framework.query.order_by(Framework.created_at).all()
+    return render_template('settings.html', products=products, frameworks=frameworks)
 
 
 # ---------------------------------------------------------------------------
@@ -104,8 +107,7 @@ def analytics():
 
 @app.route('/frameworks')
 def frameworks():
-    frameworks = Framework.query.order_by(Framework.created_at).all()
-    return render_template('frameworks.html', frameworks=frameworks)
+    return redirect(url_for('settings'))
 
 
 @app.route('/frameworks/new', methods=['POST'])
@@ -118,7 +120,7 @@ def framework_create():
     )
     db.session.add(f)
     db.session.commit()
-    return redirect(url_for('frameworks'))
+    return redirect(url_for('settings'))
 
 
 @app.route('/frameworks/<int:id>/edit', methods=['POST'])
@@ -129,7 +131,7 @@ def framework_edit(id):
     f.structure = request.form.get('structure', '')
     f.example_hooks = request.form.get('example_hooks', '')
     db.session.commit()
-    return redirect(url_for('frameworks'))
+    return redirect(url_for('settings'))
 
 
 @app.route('/frameworks/<int:id>/delete', methods=['POST'])
@@ -137,7 +139,7 @@ def framework_delete(id):
     f = Framework.query.get_or_404(id)
     db.session.delete(f)
     db.session.commit()
-    return redirect(url_for('frameworks'))
+    return redirect(url_for('settings'))
 
 
 # ---------------------------------------------------------------------------
@@ -146,8 +148,7 @@ def framework_delete(id):
 
 @app.route('/products')
 def products():
-    products = Product.query.order_by(Product.name).all()
-    return render_template('products.html', products=products)
+    return redirect(url_for('settings'))
 
 
 @app.route('/products/<int:id>/edit', methods=['POST'])

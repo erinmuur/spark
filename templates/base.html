@@ -210,8 +210,7 @@
     <a href="/" class="{% if request.endpoint == 'inspo' %}active{% endif %}">Inspo</a>
     <a href="/campaigns" class="{% if request.endpoint in ['campaigns', 'campaign_detail'] %}active{% endif %}">Campaigns</a>
     <a href="/analytics" class="{% if request.endpoint == 'analytics' %}active{% endif %}">Analytics</a>
-    <a href="/frameworks" class="{% if request.endpoint == 'frameworks' %}active{% endif %}">Frameworks</a>
-    <a href="/products" class="{% if request.endpoint == 'products' %}active{% endif %}">Products</a>
+    <a href="/settings" class="{% if request.endpoint == 'settings' %}active{% endif %}">Settings</a>
   </nav>
 
   {% block content %}{% endblock %}

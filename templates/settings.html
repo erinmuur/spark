@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Settings — Spark{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom:2rem;">Settings</h2>
+
+<!-- Product Profiles -->
+<section style="margin-bottom:3rem;">
+  <div style="margin-bottom:1rem;">
+    <h3 style="margin:0 0 0.25rem;">Product Profiles</h3>
+    <p style="color:var(--pico-muted-color); margin:0; font-size:0.9rem;">These descriptions inform Claude when generating campaign briefs.</p>
+  </div>
+  <div class="product-grid">
+    {% for product in products %}
+    <div class="product-card">
+      <h4 style="margin-top:0;">{{ product.name }}</h4>
+      <form hx-post="/products/{{ product.id }}/edit"
+            hx-target="#save-notice-{{ product.id }}"
+            hx-swap="innerHTML">
+        <label>Description
+          <textarea name="description" rows="3" placeholder="What is {{ product.name }}? What does it do?">{{ product.description or '' }}</textarea>
+        </label>
+        <label>Key benefits
+          <textarea name="key_benefits" rows="3" placeholder="What are the main benefits users experience?">{{ product.key_benefits or '' }}</textarea>
+        </label>
+        <label>Target audience
+          <textarea name="target_audience" rows="2" placeholder="Who is this for?">{{ product.target_audience or '' }}</textarea>
+        </label>
+        <label>Unique selling point
+          <textarea name="usp" rows="2" placeholder="What makes this different from alternatives?">{{ product.usp or '' }}</textarea>
+        </label>
+        <label>Tone / voice notes
+          <textarea name="voice_notes" rows="2" placeholder="Any style, tone, or voice guidance?">{{ product.voice_notes or '' }}</textarea>
+        </label>
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <button type="submit" class="secondary">Save</button>
+          <span id="save-notice-{{ product.id }}"></span>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<hr />
+
+<!-- Video Frameworks -->
+<section style="margin-top:2rem;">
+  <div style="margin-bottom:1rem;">
+    <h3 style="margin:0 0 0.25rem;">Video Frameworks</h3>
+    <p style="color:var(--pico-muted-color); margin:0; font-size:0.9rem;">Claude uses these to classify inspiration videos and generate briefs.</p>
+  </div>
+
+  {% for f in frameworks %}
+  <div class="framework-card" id="framework-{{ f.id }}">
+    <details>
+      <summary>{{ f.name }}</summary>
+      <p style="color:var(--pico-muted-color); margin-top:0.75rem;">{{ f.description }}</p>
+      <form method="post" action="/frameworks/{{ f.id }}/edit" style="margin-top:1rem;">
+        <div class="grid">
+          <label>Name<input type="text" name="name" value="{{ f.name }}" required /></label>
+        </div>
+        <label>Description
+          <textarea name="description" rows="2">{{ f.description or '' }}</textarea>
+        </label>
+        <label>Structure (beat-by-beat)
+          <textarea name="structure" rows="4">{{ f.structure or '' }}</textarea>
+        </label>
+        <label>Example hooks
+          <textarea name="example_hooks" rows="3">{{ f.example_hooks or '' }}</textarea>
+        </label>
+        <div style="display:flex; gap:0.5rem;">
+          <button type="submit" class="secondary">Save changes</button>
+          <form method="post" action="/frameworks/{{ f.id }}/delete" style="display:inline;">
+            <button type="submit" class="outline contrast"
+              onclick="return confirm('Delete this framework?')">Delete</button>
+          </form>
+        </div>
+      </form>
+    </details>
+  </div>
+  {% endfor %}
+
+  <hr />
+
+  <h4>Add a Framework</h4>
+  <form method="post" action="/frameworks/new">
+    <div class="grid">
+      <label>Name<input type="text" name="name" placeholder="e.g. Curiosity Gap" required /></label>
+    </div>
+    <label>Description
+      <textarea name="description" rows="2" placeholder="What makes this framework distinct?"></textarea>
+    </label>
+    <label>Structure
+      <textarea name="structure" rows="4" placeholder="1. Beat one&#10;2. Beat two&#10;3. Beat three"></textarea>
+    </label>
+    <label>Example hooks
+      <textarea name="example_hooks" rows="3" placeholder="One example hook per line"></textarea>
+    </label>
+    <button type="submit">Add Framework</button>
+  </form>
+</section>
+{% endblock %}
