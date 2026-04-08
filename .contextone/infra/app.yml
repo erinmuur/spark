@@ -9,6 +9,9 @@ services:
         dockerfile: "Dockerfile"
         context: "."
     expose: true
+    processes:
+      web: 1
+      bot: 1
     env:
       SLACK_BOT_TOKEN: "${ENV.SLACK_BOT_TOKEN}"
       SLACK_APP_TOKEN: "${ENV.SLACK_APP_TOKEN}"
