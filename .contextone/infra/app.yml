@@ -9,7 +9,6 @@ services:
         dockerfile: "Dockerfile"
         context: "."
     expose: true
-    port: 8080
     env:
       SLACK_BOT_TOKEN: "${ENV.SLACK_BOT_TOKEN}"
       SLACK_APP_TOKEN: "${ENV.SLACK_APP_TOKEN}"
