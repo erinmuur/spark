@@ -159,23 +159,6 @@ document.addEventListener('click', function(e) {
       </div>
     </div>
 
-    <!-- Card info -->
-    <a href="/videos/{{ video.id }}" class="card-body card-detail-link">
-      <div class="card-meta">
-        <span class="badge badge-{{ video.platform or 'unknown' }}">{{ (video.platform or '?') | upper }}</span>
-        {% if video.framework %}
-          <span class="framework-tag">{{ video.framework.name }}</span>
-        {% else %}
-          <span class="framework-tag" style="opacity:0.5;">Classifying…</span>
-        {% endif %}
-        {% if raw.view_count %}
-          <span style="font-size:0.7rem; color:var(--pico-muted-color); margin-left:auto;">
-            👁 {{ raw.view_count | humannum }}
-            {% if raw.like_count %}&nbsp; ♥ {{ raw.like_count | humannum }}{% endif %}
-          </span>
-        {% endif %}
-      </div>
-    </a>
   </div>
   {% endfor %}
 </div>
@@ -192,10 +175,13 @@ document.addEventListener('click', function(e) {
 
 .inspo-card {
   break-inside: avoid;
-  display: inline-block;         /* required for break-inside in most browsers */
+  display: inline-block;
   width: 100%;
   margin-bottom: 1.25rem;
   overflow: visible;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
 }
 .inspo-embed-wrapper { position: relative; }
 .inspo-embed { width: 100%; }
