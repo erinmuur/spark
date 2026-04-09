@@ -22,23 +22,51 @@
     <p>No videos yet. Share a TikTok, Instagram, or Twitter link in your Slack channel to get started.</p>
   {% endif %}
 </div>
+
 {% else %}
-<div class="video-grid">
+<div class="video-grid inspo-grid">
   {% for video in videos %}
   {% set raw = video.raw_metadata | fromjson %}
-  <div class="video-card">
-    <a href="{{ video.url }}" target="_blank" rel="noopener" class="thumbnail-link">
-      <img class="thumbnail" src="/thumbnails/{{ video.id }}"
-           alt="{{ video.creator or 'Video' }}" loading="lazy"
-           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-      <div class="thumbnail-placeholder" style="display:none;">
-        {% if video.platform == 'tiktok' %}🎵{% elif video.platform == 'instagram' %}📸{% else %}𝕏{% endif %}
-      </div>
-      <div class="thumbnail-overlay">
-        <span class="play-icon">▶</span>
-      </div>
-    </a>
 
+  <div class="video-card inspo-card">
+
+    <!-- Platform embed -->
+    <div class="inspo-embed">
+      {% if video.platform == 'twitter' %}
+        <blockquote class="twitter-tweet" data-dnt="true" data-theme="light" data-conversation="none">
+          <a href="{{ video.url }}">View Tweet</a>
+        </blockquote>
+
+      {% elif video.platform == 'tiktok' %}
+        {% set tk_url = raw.webpage_url or video.url %}
+        {% set tk_id = tk_url.split('/video/')[1].split('?')[0] if '/video/' in tk_url else '' %}
+        {% if tk_id %}
+          <blockquote class="tiktok-embed" cite="{{ tk_url }}" data-video-id="{{ tk_id }}"
+            style="max-width:100%; min-width:100%; border:none; padding:0;">
+            <section><a href="{{ tk_url }}" target="_blank">View on TikTok</a></section>
+          </blockquote>
+        {% else %}
+          <div class="embed-fallback">
+            <a href="{{ video.url }}" target="_blank" rel="noopener">🎵 View on TikTok ↗</a>
+          </div>
+        {% endif %}
+
+      {% elif video.platform == 'instagram' %}
+        <blockquote class="instagram-media"
+          data-instgrm-permalink="{{ video.url }}"
+          data-instgrm-version="14"
+          data-instgrm-captioned
+          style="width:100%; border:none; margin:0;">
+        </blockquote>
+
+      {% else %}
+        <div class="embed-fallback">
+          <a href="{{ video.url }}" target="_blank" rel="noopener">View Video ↗</a>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Card info -->
     <div class="card-body">
       <div class="card-meta">
         <span class="badge badge-{{ video.platform or 'unknown' }}">{{ (video.platform or '?') | upper }}</span>
@@ -47,89 +75,61 @@
         {% else %}
           <span class="framework-tag" style="opacity:0.5;">Classifying…</span>
         {% endif %}
+        {% if raw.view_count %}
+          <span style="font-size:0.7rem; color:var(--pico-muted-color); margin-left:auto;">
+            👁 {{ raw.view_count | humannum }}
+            {% if raw.like_count %}&nbsp; ♥ {{ raw.like_count | humannum }}{% endif %}
+          </span>
+        {% endif %}
       </div>
 
-      {% if video.creator %}
-        <div class="creator">@{{ video.creator }}</div>
-      {% endif %}
-
-      {% if video.caption %}
+      {% if video.analysis %}
+        <div class="caption">{{ video.analysis }}</div>
+      {% elif video.caption %}
         <div class="caption">{{ video.caption }}</div>
       {% endif %}
 
-      <div class="card-stats">
-        {% if raw.view_count %}
-          <span title="Views">👁 {{ raw.view_count | humannum }}</span>
-        {% endif %}
-        {% if raw.like_count %}
-          <span title="Likes">♥ {{ raw.like_count | humannum }}</span>
-        {% endif %}
-        <span style="margin-left:auto; color:var(--pico-muted-color); font-size:0.7rem;">
-          {{ video.created_at.strftime('%b %d, %Y') }}
-        </span>
-      </div>
-
-      <div class="card-footer">
-        <button class="secondary outline"
+      <div class="card-footer" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+        <button class="secondary outline" style="flex:1; margin:0;"
           hx-get="/campaigns/new?video_id={{ video.id }}"
           hx-target="#modal-content"
           hx-swap="innerHTML">
           Create Campaign
         </button>
-        <a href="{{ video.url }}" target="_blank" rel="noopener" class="outline" role="button"
-           style="width:auto; padding:0.4rem 0.75rem; font-size:0.8rem;">
-          View Original ↗
+        <a href="{{ video.url }}" target="_blank" rel="noopener" role="button"
+           class="outline" style="width:auto; margin:0; padding:0.4rem 0.75rem; font-size:0.85rem; white-space:nowrap;">
+          ↗
         </a>
       </div>
     </div>
   </div>
   {% endfor %}
 </div>
-{% endif %}
 
 <style>
-.thumbnail-link {
-  display: block;
-  position: relative;
-  text-decoration: none;
-}
-.thumbnail-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0);
-  transition: background 0.15s;
+.inspo-grid { align-items: start; }
+.inspo-card { overflow: visible; }
+.inspo-embed { width: 100%; }
+.inspo-embed blockquote { margin: 0 !important; }
+.embed-fallback {
+  padding: 2rem;
+  text-align: center;
+  background: #f3f4f6;
   border-radius: 8px 8px 0 0;
 }
-.thumbnail-link:hover .thumbnail-overlay {
-  background: rgba(0,0,0,0.3);
-}
-.play-icon {
-  color: white;
-  font-size: 2rem;
-  opacity: 0;
-  transition: opacity 0.15s;
-  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
-}
-.thumbnail-link:hover .play-icon {
-  opacity: 1;
-}
-.card-stats {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.75rem;
-  color: var(--pico-muted-color);
-  margin: 0.4rem 0;
-}
-.card-footer {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-top: 0.5rem;
-}
 </style>
+
+<!-- Load embed scripts only for platforms present on this page -->
+{% set platforms = videos | map(attribute='platform') | list %}
+{% if 'twitter' in platforms %}
+<script async src="https://platform.twitter.com/widgets.js"></script>
+{% endif %}
+{% if 'tiktok' in platforms %}
+<script async src="https://www.tiktok.com/embed.js"></script>
+{% endif %}
+{% if 'instagram' in platforms %}
+<script async src="https://www.instagram.com/embed.js"></script>
+{% endif %}
+
+{% endif %}
 {% endblock %}
