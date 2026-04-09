@@ -125,15 +125,15 @@ document.addEventListener('click', function(e) {
     <!-- Platform embed + hover overlay -->
     <div class="inspo-embed-wrapper">
       <div class="inspo-embed">
-        {% if video.embed_html %}
+        {% if video.platform in ['tiktok', 'instagram'] %}
+          {% if video.thumbnail_url %}
+            <img src="/thumbnails/{{ video.id }}"
+                 style="width:100%; aspect-ratio:9/16; object-fit:cover; display:block; border-radius:12px;" />
+          {% else %}
+            <div style="width:100%; aspect-ratio:9/16; background:#111; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#444; font-size:2rem;">▶</div>
+          {% endif %}
+        {% elif video.embed_html %}
           {{ video.embed_html | dark_embed | safe }}
-        {% elif video.platform == 'instagram' %}
-          <blockquote class="instagram-media"
-            data-instgrm-permalink="{{ video.url }}"
-            data-instgrm-version="14"
-            data-instgrm-captioned
-            style="width:100%; border:none; margin:0;">
-          </blockquote>
         {% else %}
           <div class="embed-fallback">
             <a href="{{ video.url }}" target="_blank" rel="noopener">View on {{ video.platform | title }} ↗</a>
@@ -253,9 +253,6 @@ document.addEventListener('click', function(e) {
 .card-detail-link:hover .caption { color: var(--pico-primary); }
 </style>
 
-{% if 'instagram' in videos | map(attribute='platform') | list %}
-<script async src="https://www.instagram.com/embed.js"></script>
-{% endif %}
 
 <script>
 document.addEventListener('mousemove', function(e) {
