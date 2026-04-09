@@ -31,6 +31,7 @@ with app.app_context():
 def migrate_db():
     """Add new columns to existing tables without dropping data."""
     new_columns = [
+        ('video', 'transcript', 'TEXT'),
         ('campaign', 'posted_url', 'TEXT'),
         ('campaign', 'posted_at', 'DATETIME'),
         ('campaign', 'views', 'INTEGER'),
@@ -67,14 +68,14 @@ def seed_db():
     db.session.commit()
 
 
-def classify_in_background(video_id):
+def classify_in_background(video_id, frames=None, transcript=None):
     """Run framework classification in a background thread."""
     with app.app_context():
         video = Video.query.get(video_id)
         if not video:
             return
         frameworks = Framework.query.all()
-        framework_id, analysis = ai.classify_video(video, frameworks)
+        framework_id, analysis = ai.classify_video(video, frameworks, frames=frames, transcript=transcript)
         if framework_id:
             video.framework_id = framework_id
         if analysis:
@@ -377,7 +378,7 @@ def ingest():
     if not url:
         return jsonify({'error': 'no url'}), 400
 
-    from ingest import detect_platform, fetch_metadata
+    from ingest import detect_platform
 
     existing = Video.query.filter_by(url=url).first()
     if existing:
@@ -396,16 +397,27 @@ def ingest():
     # Fetch metadata + classify in background
     def process(video_id):
         with app.app_context():
+            from ingest import fetch_metadata, fetch_rich_content
             v = Video.query.get(video_id)
             meta = fetch_metadata(v.url)
+            duration = None
             if meta and 'error' not in meta:
                 v.creator = meta.get('creator', '')
                 v.title = meta.get('title', '')
                 v.caption = meta.get('caption', '')
                 v.thumbnail_url = meta.get('thumbnail_url', '')
                 v.raw_metadata = meta.get('raw', '')
+                duration = meta.get('duration')
                 db.session.commit()
-            classify_in_background(video_id)
+
+            rich = fetch_rich_content(v.url, duration=duration)
+            frames = rich.get('frames', [])
+            transcript = rich.get('transcript', '')
+            if transcript:
+                v.transcript = transcript
+                db.session.commit()
+
+            classify_in_background(video_id, frames=frames, transcript=transcript)
 
     threading.Thread(target=process, args=(video.id,), daemon=True).start()
 

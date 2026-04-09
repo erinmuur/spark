@@ -5,3 +5,4 @@ slack-bolt
 yt-dlp
 python-dotenv
 requests
+openai-whisper

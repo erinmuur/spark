@@ -6,7 +6,7 @@ client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
 MODEL = 'claude-opus-4-6'
 
 
-def classify_video(video, frameworks):
+def classify_video(video, frameworks, frames=None, transcript=None):
     """Match a video to one of the given frameworks. Returns (framework_id, analysis_text)."""
     if not frameworks:
         return None, None
@@ -15,7 +15,7 @@ def classify_video(video, frameworks):
         f"ID {f.id}: {f.name} — {f.description}" for f in frameworks
     )
 
-    prompt = f"""You are a short-form video strategist. Analyse the video below and classify it into the best-matching framework from the list.
+    text_prompt = f"""You are a short-form video strategist. Analyse the video below and classify it into the best-matching framework from the list.
 
 FRAMEWORKS:
 {framework_list}
@@ -25,19 +25,35 @@ VIDEO:
 - Platform: {video.platform}
 - Creator: {video.creator or 'Unknown'}
 - Title: {video.title or ''}
-- Caption: {video.caption or ''}
+- Caption: {video.caption or ''}"""
+
+    if transcript:
+        text_prompt += f"\n- Transcript: {transcript}"
+
+    text_prompt += """
 
 Respond with JSON only, no markdown fences:
-{{
+{
   "framework_id": <integer ID from the list above>,
   "analysis": "<2-3 sentences explaining why this framework applies and what makes this video effective>"
-}}"""
+}"""
+
+    if frames:
+        content = [{"type": "text", "text": "Here are frames from the video:"}]
+        for frame in frames:
+            content.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": "image/jpeg", "data": frame}
+            })
+        content.append({"type": "text", "text": text_prompt})
+    else:
+        content = text_prompt
 
     try:
         message = client.messages.create(
             model=MODEL,
             max_tokens=512,
-            messages=[{'role': 'user', 'content': prompt}]
+            messages=[{'role': 'user', 'content': content}]
         )
         raw = message.content[0].text.strip()
         data = json.loads(raw)
@@ -52,7 +68,6 @@ def generate_campaign(video, framework, product, context_notes):
     if framework:
         framework_info = f"""Framework: {framework.name}
 Description: {framework.description}
-Structure: {framework.structure}
 Example hooks: {framework.example_hooks}"""
 
     product_info = f"""Product: {product.name}
@@ -66,6 +81,7 @@ Tone / voice notes: {product.voice_notes or '(not yet filled in)'}"""
 Platform: {video.platform}
 Creator: {video.creator or 'Unknown'}
 Caption: {video.caption or ''}
+Transcript: {video.transcript or ''}
 Framework analysis: {video.analysis or ''}"""
 
     context = context_notes.strip() if context_notes else 'No additional context provided.'

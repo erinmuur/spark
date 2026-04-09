@@ -1,5 +1,10 @@
 import re
+import os
 import json
+import glob
+import base64
+import subprocess
+import tempfile
 import yt_dlp
 
 
@@ -11,6 +16,16 @@ VIDEO_URL_PATTERNS = [
     r'https?://(?:www\.)?twitter\.com/\w+/status/\d+[^\s>]*',
     r'https?://(?:www\.)?x\.com/\w+/status/\d+[^\s>]*',
 ]
+
+_whisper_model = None
+
+
+def _load_whisper():
+    global _whisper_model
+    if _whisper_model is None:
+        import whisper
+        _whisper_model = whisper.load_model('tiny')
+    return _whisper_model
 
 
 def detect_platform(url):
@@ -27,7 +42,6 @@ def extract_video_urls(text):
     """Extract video URLs from Slack message text.
     Slack wraps URLs like <https://...> or <https://...|display text>.
     """
-    # Unescape Slack URL format
     unescaped = re.sub(r'<(https?://[^|>]+)(?:\|[^>]*)?>',  r'\1', text)
 
     urls = []
@@ -35,7 +49,6 @@ def extract_video_urls(text):
         matches = re.findall(pattern, unescaped, re.IGNORECASE)
         urls.extend(matches)
 
-    # Deduplicate while preserving order
     seen = set()
     result = []
     for url in urls:
@@ -46,7 +59,7 @@ def extract_video_urls(text):
 
 
 def fetch_metadata(url):
-    """Fetch video metadata via yt-dlp. Returns a dict."""
+    """Fetch video metadata via yt-dlp without downloading. Returns a dict."""
     ydl_opts = {
         'skip_download': True,
         'quiet': True,
@@ -59,11 +72,9 @@ def fetch_metadata(url):
             if info is None:
                 return None
 
-            # Pick the best thumbnail
             thumbnail = info.get('thumbnail', '')
             thumbnails = info.get('thumbnails', [])
             if thumbnails:
-                # Prefer the highest resolution
                 best = max(thumbnails, key=lambda t: (t.get('width', 0) or 0) * (t.get('height', 0) or 0), default=None)
                 if best:
                     thumbnail = best.get('url', thumbnail)
@@ -95,3 +106,65 @@ def fetch_metadata(url):
             }
     except Exception as e:
         return {'error': str(e)}
+
+
+def fetch_rich_content(url, duration=None):
+    """Download video, extract frames and transcribe audio.
+    Returns dict with 'frames' (list of base64 JPEGs) and 'transcript' (str).
+    """
+    result = {'frames': [], 'transcript': ''}
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_template = os.path.join(tmpdir, 'video.%(ext)s')
+        ydl_opts = {
+            'outtmpl': output_template,
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+            'quiet': True,
+            'no_warnings': True,
+        }
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+        except Exception as e:
+            result['error'] = str(e)
+            return result
+
+        # Find downloaded file
+        files = [f for f in glob.glob(os.path.join(tmpdir, 'video.*'))
+                 if f.split('.')[-1] in ('mp4', 'webm', 'mkv', 'mov', 'm4v')]
+        if not files:
+            return result
+        video_path = files[0]
+
+        # Extract evenly-spaced frames
+        num_frames = 6
+        if duration and duration > 0:
+            interval = duration / (num_frames + 1)
+            timestamps = [interval * (i + 1) for i in range(num_frames)]
+        else:
+            timestamps = [2, 5, 8, 12, 16, 20]
+
+        for i, ts in enumerate(timestamps):
+            frame_path = os.path.join(tmpdir, f'frame_{i}.jpg')
+            cmd = [
+                'ffmpeg', '-ss', str(ts), '-i', video_path,
+                '-vframes', '1', '-q:v', '3',
+                '-vf', 'scale=768:-1',
+                frame_path, '-y', '-loglevel', 'error'
+            ]
+            proc = subprocess.run(cmd, capture_output=True)
+            if proc.returncode == 0 and os.path.exists(frame_path):
+                with open(frame_path, 'rb') as f:
+                    result['frames'].append(base64.b64encode(f.read()).decode('utf-8'))
+
+        # Transcribe audio with Whisper
+        try:
+            model = _load_whisper()
+            whisper_result = model.transcribe(video_path, fp16=False)
+            result['transcript'] = whisper_result['text'].strip()
+        except Exception as e:
+            result['transcript'] = ''
+
+    return result
