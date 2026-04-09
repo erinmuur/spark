@@ -71,6 +71,58 @@ def _fetch_via_subprocess(url):
     return None
 
 
+def _fetch_tiktok_via_apify(url):
+    """Fetch TikTok post data via Apify scraper. Returns dict with metrics including saves."""
+    api_token = os.environ.get('APIFY_API_TOKEN')
+    if not api_token:
+        return None
+    try:
+        from apify_client import ApifyClient
+        client = ApifyClient(api_token)
+        run_input = {
+            'postURLs': [url],
+            'resultsPerPage': 1,
+        }
+        run = client.actor('clockworks/tiktok-scraper').call(run_input=run_input, timeout_secs=60)
+        if run.get('status') != 'SUCCEEDED':
+            return None
+        items = list(client.dataset(run['defaultDatasetId']).iterate_items())
+        if not items:
+            return None
+        item = items[0]
+        author_meta = item.get('authorMeta', {}) if isinstance(item.get('authorMeta'), dict) else {}
+        return {
+            'title': (item.get('text') or '')[:120],
+            'creator': author_meta.get('name', ''),
+            'caption': item.get('text', ''),
+            'thumbnail_url': '',
+            'duration': (item.get('videoMeta', {}) or {}).get('duration', 0),
+            'platform': 'tiktok',
+            'view_count': item.get('playCount'),
+            'like_count': item.get('diggCount'),
+            'comment_count': item.get('commentCount'),
+            'share_count': item.get('shareCount'),
+            'save_count': item.get('collectCount'),
+            'raw': json.dumps({
+                'title': item.get('text', '')[:120],
+                'uploader': author_meta.get('name'),
+                'description': item.get('text'),
+                'view_count': item.get('playCount'),
+                'like_count': item.get('diggCount'),
+                'comment_count': item.get('commentCount'),
+                'repost_count': item.get('repostCount'),
+                'share_count': item.get('shareCount'),
+                'digg_count': item.get('collectCount'),
+                'timestamp': item.get('createTimeISO'),
+                'tags': [h.get('name') for h in (item.get('hashtags') or [])],
+                'webpage_url': item.get('webVideoUrl'),
+                'source': 'apify',
+            }, default=str),
+        }
+    except Exception:
+        return None
+
+
 def _clean_url(url):
     """Strip tracking query params from TikTok/Instagram URLs that break extractors."""
     from urllib.parse import urlparse, urlunparse
@@ -138,6 +190,14 @@ def fetch_metadata(url):
         or ''
     )
 
+    save_count = info.get('digg_count') or info.get('favorite_count')
+
+    # For TikTok, try Apify to get saves (collectCount) since yt-dlp doesn't provide it
+    if is_tiktok and save_count is None:
+        apify_data = _fetch_tiktok_via_apify(url)
+        if apify_data and apify_data.get('save_count') is not None:
+            save_count = apify_data['save_count']
+
     return {
         'title': info.get('title', ''),
         'creator': creator,
@@ -149,7 +209,7 @@ def fetch_metadata(url):
         'like_count': info.get('like_count'),
         'comment_count': info.get('comment_count'),
         'share_count': info.get('repost_count') or info.get('share_count'),
-        'save_count': info.get('digg_count') or info.get('favorite_count'),
+        'save_count': save_count,
         'raw': json.dumps({
             'title': info.get('title'),
             'uploader': info.get('uploader'),
@@ -159,7 +219,7 @@ def fetch_metadata(url):
             'like_count': info.get('like_count'),
             'comment_count': info.get('comment_count'),
             'repost_count': info.get('repost_count'),
-            'digg_count': info.get('digg_count'),
+            'digg_count': save_count,
             'upload_date': info.get('upload_date'),
             'timestamp': info.get('timestamp'),
             'tags': info.get('tags'),
@@ -168,8 +228,73 @@ def fetch_metadata(url):
     }
 
 
+def _fetch_instagram_via_apify(url):
+    """Fetch Instagram post data via Apify scraper. Returns dict or None."""
+    api_token = os.environ.get('APIFY_API_TOKEN')
+    if not api_token:
+        return None
+    try:
+        from apify_client import ApifyClient
+        client = ApifyClient(api_token)
+        run_input = {
+            'directUrls': [url],
+            'resultsLimit': 1,
+            'resultsType': 'posts',
+        }
+        run = client.actor('apify/instagram-scraper').call(run_input=run_input, timeout_secs=60)
+        if run.get('status') != 'SUCCEEDED':
+            return None
+        items = list(client.dataset(run['defaultDatasetId']).iterate_items())
+        if not items:
+            return None
+        item = items[0]
+
+        # Build embed HTML
+        shortcode = item.get('shortCode', '')
+        embed_html = (
+            f'<blockquote class="instagram-media" '
+            f'data-instgrm-permalink="https://www.instagram.com/p/{shortcode}/" '
+            f'data-instgrm-version="14" style="max-width:540px;width:100%;"></blockquote>'
+        ) if shortcode else ''
+
+        return {
+            'title': item.get('caption', '')[:120] or 'Instagram post',
+            'creator': item.get('ownerUsername', ''),
+            'caption': item.get('caption', ''),
+            'thumbnail_url': item.get('displayUrl', ''),
+            'duration': item.get('videoDuration') or 0,
+            'platform': 'instagram',
+            'view_count': item.get('videoViewCount') or item.get('videoPlayCount'),
+            'like_count': item.get('likesCount'),
+            'comment_count': item.get('commentsCount'),
+            'share_count': None,
+            'save_count': None,
+            'embed_html': embed_html,
+            'raw': json.dumps({
+                'title': item.get('caption', '')[:120],
+                'uploader': item.get('ownerUsername'),
+                'description': item.get('caption'),
+                'type': item.get('type'),
+                'view_count': item.get('videoViewCount') or item.get('videoPlayCount'),
+                'like_count': item.get('likesCount'),
+                'comment_count': item.get('commentsCount'),
+                'timestamp': item.get('timestamp'),
+                'shortCode': shortcode,
+                'source': 'apify',
+            }, default=str),
+        }
+    except Exception:
+        return None
+
+
 def _scrape_instagram_meta(url):
-    """Fallback: scrape Instagram post page for thumbnail and basic info."""
+    """Fallback: try Apify first, then scrape Instagram post page for thumbnail and basic info."""
+    # Try Apify (returns real metrics)
+    apify_result = _fetch_instagram_via_apify(url)
+    if apify_result:
+        return apify_result
+
+    # HTML scrape fallback (no metrics, just thumbnail + creator)
     import requests
     try:
         r = requests.get(url, timeout=10, headers={
