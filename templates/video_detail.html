@@ -127,20 +127,14 @@
 <style>
 .detail-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 340px 1fr;
   gap: 2rem;
   align-items: start;
 }
 @media (max-width: 768px) {
   .detail-layout { grid-template-columns: 1fr; }
 }
-.detail-embed {
-  min-width: 0;
-  max-height: 70vh;
-  overflow-y: auto;
-  position: sticky;
-  top: 1rem;
-}
+.detail-embed { min-width: 0; }
 .detail-info { min-width: 0; }
 .detail-action-btn {
   width: auto; margin: 0;
