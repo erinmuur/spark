@@ -60,10 +60,15 @@ VIDEO:
 
     text_prompt += f"""
 
+IMPORTANT INSTRUCTIONS FOR ANALYSIS:
+- Describe what SPECIFICALLY happens in this video — the actual opening moment, the specific words or phrases used, the visual action taken. Do NOT describe what the framework means in general.
+- If the available information is limited (no transcript, no frames), say what you can infer from the caption/title and flag your confidence.
+- For UGC format: classify based on the actual content signals, not assumptions from the creator name or platform.
+
 Respond with JSON only, no markdown fences:
 {{
   "framework_id": <integer ID from the list above>,
-  "analysis": "<2-3 sentences explaining why this framework applies and what makes this video effective>",
+  "analysis": "<2-3 sentences describing what specifically happens in THIS video and why it works — reference actual moments, words, or visuals from the content, not generic descriptions of the framework>",
   "video_format": "<one of: {', '.join(UGC_FORMATS)}>"
 }}"""
 
