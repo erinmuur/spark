@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import anthropic
 
 client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
@@ -86,10 +87,14 @@ Respond with JSON only, no markdown fences:
     try:
         message = client.messages.create(
             model=MODEL,
-            max_tokens=600,
+            max_tokens=1024,
             messages=[{'role': 'user', 'content': content}]
         )
         raw = message.content[0].text.strip()
+        # Strip markdown fences if Claude adds them despite instructions
+        if raw.startswith('```'):
+            raw = re.sub(r'^```[a-z]*\n?', '', raw)
+            raw = re.sub(r'\n?```$', '', raw)
         data = json.loads(raw)
         fmt = data.get('video_format')
         if fmt not in UGC_FORMATS:
