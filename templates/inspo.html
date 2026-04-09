@@ -181,8 +181,22 @@ document.addEventListener('click', function(e) {
 </div>
 
 <style>
-.inspo-grid { align-items: start; }
-.inspo-card { overflow: visible; }
+/* Masonry columns layout */
+.inspo-grid {
+  display: block !important;     /* override .video-grid CSS grid */
+  columns: 3;
+  column-gap: 1.25rem;
+}
+@media (max-width: 960px)  { .inspo-grid { columns: 2; } }
+@media (max-width: 560px)  { .inspo-grid { columns: 1; } }
+
+.inspo-card {
+  break-inside: avoid;
+  display: inline-block;         /* required for break-inside in most browsers */
+  width: 100%;
+  margin-bottom: 1.25rem;
+  overflow: visible;
+}
 .inspo-embed-wrapper { position: relative; }
 .inspo-embed { width: 100%; }
 .inspo-embed blockquote { margin: 0 !important; }
