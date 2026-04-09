@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ video.creator or 'Video' }} — Spark{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem;">
+  <a href="/" style="font-size:0.85rem; color:var(--pico-muted-color); text-decoration:none;">← Back to Inspo</a>
+</div>
+
+<div class="detail-layout">
+
+  <!-- Left: embed -->
+  <div class="detail-embed">
+    {% if video.embed_html %}
+      {{ video.embed_html | safe }}
+    {% elif video.platform == 'instagram' %}
+      <blockquote class="instagram-media"
+        data-instgrm-permalink="{{ video.url }}"
+        data-instgrm-version="14"
+        data-instgrm-captioned
+        style="width:100%; border:none; margin:0;">
+      </blockquote>
+      <script async src="https://www.instagram.com/embed.js"></script>
+    {% else %}
+      <div style="padding:2rem; text-align:center; background:#f3f4f6; border-radius:8px;">
+        <a href="{{ video.url }}" target="_blank" rel="noopener">View on {{ video.platform | title }} ↗</a>
+      </div>
+    {% endif %}
+
+    <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
+      <a href="{{ video.url }}" target="_blank" rel="noopener" role="button" class="outline secondary" style="width:auto; margin:0; font-size:0.85rem;">
+        View Original ↗
+      </a>
+      <button class="fav-btn-detail {% if video.favorited %}active{% endif %}"
+              hx-post="/videos/{{ video.id }}/favorite"
+              hx-target="this" hx-swap="outerHTML"
+              style="background:none; border:1px solid var(--pico-muted-border-color); border-radius:6px; padding:0.4rem 0.75rem; cursor:pointer; font-size:1rem;">
+        {% if video.favorited %}♥{% else %}♡{% endif %} {{ 'Favorited' if video.favorited else 'Favorite' }}
+      </button>
+      <form method="post" action="/videos/{{ video.id }}/delete" style="margin:0;"
+            onsubmit="return confirm('Delete this video?')">
+        <button type="submit" class="outline contrast" style="width:auto; margin:0; font-size:0.85rem;">Delete</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Right: analysis -->
+  <div class="detail-info">
+    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1.25rem; flex-wrap:wrap;">
+      <span class="badge badge-{{ video.platform or 'unknown' }}">{{ (video.platform or '?') | upper }}</span>
+      {% if video.framework %}
+        <span class="framework-tag">{{ video.framework.name }}</span>
+      {% endif %}
+      {% if video.favorited %}<span style="color:#ef4444;">♥</span>{% endif %}
+      <span style="font-size:0.75rem; color:var(--pico-muted-color); margin-left:auto;">
+        Added {{ video.created_at.strftime('%b %d, %Y') }}
+      </span>
+    </div>
+
+    {% if video.creator %}
+      <p style="margin:0 0 0.5rem; font-weight:600;">@{{ video.creator }}</p>
+    {% endif %}
+
+    <!-- Framework analysis -->
+    {% if video.analysis %}
+    <section style="margin-bottom:1.5rem;">
+      <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--pico-muted-color); margin-bottom:0.5rem;">Framework Analysis</h4>
+      <p style="margin:0; line-height:1.6;">{{ video.analysis }}</p>
+    </section>
+    {% endif %}
+
+    <!-- Framework detail -->
+    {% if video.framework %}
+    <section style="margin-bottom:1.5rem; padding:1rem; background:var(--pico-card-background-color); border:1px solid var(--pico-muted-border-color); border-radius:8px;">
+      <h4 style="margin:0 0 0.5rem; font-size:0.95rem;">{{ video.framework.name }}</h4>
+      {% if video.framework.description %}
+        <p style="margin:0 0 0.75rem; font-size:0.85rem; color:var(--pico-muted-color);">{{ video.framework.description }}</p>
+      {% endif %}
+      {% if video.framework.example_hooks %}
+        <div>
+          <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--pico-muted-color);">Example hooks</span>
+          <p style="margin:0.25rem 0 0; font-size:0.85rem; white-space:pre-line;">{{ video.framework.example_hooks }}</p>
+        </div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <!-- Transcript -->
+    {% if video.transcript %}
+    <section style="margin-bottom:1.5rem;">
+      <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--pico-muted-color); margin-bottom:0.5rem;">Transcript</h4>
+      <p style="margin:0; font-size:0.85rem; line-height:1.6; color:var(--pico-muted-color);">{{ video.transcript }}</p>
+    </section>
+    {% endif %}
+
+    <!-- Campaigns from this video -->
+    {% if video.campaigns %}
+    <section style="margin-bottom:1.5rem;">
+      <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--pico-muted-color); margin-bottom:0.5rem;">Campaigns</h4>
+      {% for c in video.campaigns %}
+        <a href="/campaigns/{{ c.id }}" style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; border:1px solid var(--pico-muted-border-color); border-radius:6px; margin-bottom:0.4rem; text-decoration:none; color:inherit; font-size:0.85rem;">
+          <span class="badge status-{{ c.status.lower() }}">{{ c.status }}</span>
+          {{ c.product.name }} — {{ c.concept[:80] ~ '…' if c.concept and c.concept|length > 80 else c.concept or '(no concept yet)' }}
+        </a>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    <button class="secondary"
+      hx-get="/campaigns/new?video_id={{ video.id }}"
+      hx-target="#modal-content"
+      hx-swap="innerHTML"
+      style="width:auto;">
+      + Create Campaign
+    </button>
+  </div>
+</div>
+
+<style>
+.detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+@media (max-width: 768px) {
+  .detail-layout { grid-template-columns: 1fr; }
+}
+.detail-embed { min-width: 0; }
+.detail-info { min-width: 0; }
+.fav-btn-detail.active { color: #ef4444; border-color: #ef4444; }
+</style>
+{% endblock %}

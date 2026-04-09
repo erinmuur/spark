@@ -122,6 +122,20 @@ document.addEventListener('click', function(e) {
 
   <div class="video-card inspo-card">
 
+    <!-- Hover action buttons -->
+    <div class="card-actions">
+      <form method="post" action="/videos/{{ video.id }}/delete"
+            onsubmit="return confirm('Delete this video?')">
+        <button type="submit" class="action-btn delete-btn" title="Delete">✕</button>
+      </form>
+      <button class="action-btn fav-btn {% if video.favorited %}active{% endif %}"
+              hx-post="/videos/{{ video.id }}/favorite"
+              hx-target="this" hx-swap="outerHTML"
+              title="Favorite">
+        {% if video.favorited %}♥{% else %}♡{% endif %}
+      </button>
+    </div>
+
     <!-- Platform embed -->
     <div class="inspo-embed">
       {% if video.embed_html %}
@@ -142,26 +156,27 @@ document.addEventListener('click', function(e) {
 
     <!-- Card info -->
     <div class="card-body">
-      <div class="card-meta">
-        <span class="badge badge-{{ video.platform or 'unknown' }}">{{ (video.platform or '?') | upper }}</span>
-        {% if video.framework %}
-          <span class="framework-tag">{{ video.framework.name }}</span>
-        {% else %}
-          <span class="framework-tag" style="opacity:0.5;">Classifying…</span>
+      <a href="/videos/{{ video.id }}" class="card-detail-link">
+        <div class="card-meta">
+          <span class="badge badge-{{ video.platform or 'unknown' }}">{{ (video.platform or '?') | upper }}</span>
+          {% if video.framework %}
+            <span class="framework-tag">{{ video.framework.name }}</span>
+          {% else %}
+            <span class="framework-tag" style="opacity:0.5;">Classifying…</span>
+          {% endif %}
+          {% if raw.view_count %}
+            <span style="font-size:0.7rem; color:var(--pico-muted-color); margin-left:auto;">
+              👁 {{ raw.view_count | humannum }}
+              {% if raw.like_count %}&nbsp; ♥ {{ raw.like_count | humannum }}{% endif %}
+            </span>
+          {% endif %}
+        </div>
+        {% if video.analysis %}
+          <div class="caption">{{ video.analysis }}</div>
+        {% elif video.caption %}
+          <div class="caption">{{ video.caption }}</div>
         {% endif %}
-        {% if raw.view_count %}
-          <span style="font-size:0.7rem; color:var(--pico-muted-color); margin-left:auto;">
-            👁 {{ raw.view_count | humannum }}
-            {% if raw.like_count %}&nbsp; ♥ {{ raw.like_count | humannum }}{% endif %}
-          </span>
-        {% endif %}
-      </div>
-
-      {% if video.analysis %}
-        <div class="caption">{{ video.analysis }}</div>
-      {% elif video.caption %}
-        <div class="caption">{{ video.caption }}</div>
-      {% endif %}
+      </a>
 
       <div class="card-footer" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
         <button class="secondary outline" style="flex:1; margin:0;"
@@ -182,7 +197,7 @@ document.addEventListener('click', function(e) {
 
 <style>
 .inspo-grid { align-items: start; }
-.inspo-card { overflow: visible; }
+.inspo-card { overflow: visible; position: relative; }
 .inspo-embed { width: 100%; }
 .inspo-embed blockquote { margin: 0 !important; }
 .embed-fallback {
@@ -191,6 +206,45 @@ document.addEventListener('click', function(e) {
   background: #f3f4f6;
   border-radius: 8px 8px 0 0;
 }
+
+/* Hover action buttons */
+.card-actions {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 10;
+  pointer-events: none;
+}
+.inspo-card:hover .card-actions { opacity: 1; pointer-events: auto; }
+.card-actions form { margin: 0; }
+.action-btn {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+  padding: 0; margin: 0;
+  transition: transform 0.1s;
+}
+.action-btn:hover { transform: scale(1.15); }
+.delete-btn { background: #ef4444; color: white; font-weight: 700; font-size: 0.7rem; }
+.fav-btn { background: white; color: #9ca3af; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.fav-btn.active { color: #ef4444; }
+
+/* Card detail link */
+.card-detail-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.card-detail-link:hover .caption { color: var(--pico-primary); }
 </style>
 
 {% if 'instagram' in videos | map(attribute='platform') | list %}

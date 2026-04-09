@@ -74,6 +74,7 @@ def migrate_db():
     new_columns = [
         ('video', 'transcript', 'TEXT'),
         ('video', 'embed_html', 'TEXT'),
+        ('video', 'favorited', 'BOOLEAN DEFAULT 0'),
         ('campaign', 'posted_url', 'TEXT'),
         ('campaign', 'posted_at', 'DATETIME'),
         ('campaign', 'views', 'INTEGER'),
@@ -204,6 +205,40 @@ def inspo():
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Video detail / delete / favorite
+# ---------------------------------------------------------------------------
+
+@app.route('/videos/<int:id>')
+def video_detail(id):
+    video = Video.query.get_or_404(id)
+    return render_template('video_detail.html', video=video, statuses=CAMPAIGN_STATUSES)
+
+
+@app.route('/videos/<int:id>/delete', methods=['POST'])
+def video_delete(id):
+    video = Video.query.get_or_404(id)
+    # Remove cached thumbnail if present
+    thumb_path = os.path.join(_data_dir, 'thumbnails', f'{id}.jpg')
+    if os.path.exists(thumb_path):
+        os.remove(thumb_path)
+    db.session.delete(video)
+    db.session.commit()
+    return redirect(url_for('inspo'))
+
+
+@app.route('/videos/<int:id>/favorite', methods=['POST'])
+def video_favorite(id):
+    video = Video.query.get_or_404(id)
+    video.favorited = not video.favorited
+    db.session.commit()
+    if request.headers.get('HX-Request'):
+        heart = '♥' if video.favorited else '♡'
+        cls = 'fav-btn active' if video.favorited else 'fav-btn'
+        return f'<button class="{cls}" hx-post="/videos/{id}/favorite" hx-target="this" hx-swap="outerHTML">{heart}</button>'
+    return redirect(url_for('inspo'))
+
+
 # ---------------------------------------------------------------------------
 # Settings (combines Products + Frameworks)
 # ---------------------------------------------------------------------------

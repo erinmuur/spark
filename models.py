@@ -33,7 +33,9 @@ class Video(db.Model):
     slack_ts = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    campaigns = db.relationship('Campaign', backref='video', lazy=True)
+    favorited = db.Column(db.Boolean, default=False)
+
+    campaigns = db.relationship('Campaign', backref='video', lazy=True, cascade='all, delete-orphan')
 
 
 class Product(db.Model):
