@@ -42,9 +42,10 @@ def dark_embed_filter(html):
         html = html.replace('class="twitter-tweet"', 'class="twitter-tweet" data-theme="dark"')
     if 'tiktok-embed' in html:
         html = html.replace('class="tiktok-embed"', 'class="tiktok-embed" data-background-color="#181818"')
-        # Remove hardcoded width constraints so the embed fills its container
-        html = html.replace('max-width:605px;min-width:325px;', 'width:100%;max-width:100%;')
-        html = html.replace('max-width: 605px; min-width: 325px;', 'width:100%;max-width:100%;')
+        # Remove hardcoded width constraints so CSS can control the size
+        html = html.replace('max-width:605px;min-width:325px;', '')
+        html = html.replace('max-width: 605px; min-width: 325px;', '')
+        html = html.replace('max-width:605px; min-width:325px;', '')
     return html
 
 
