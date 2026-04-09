@@ -58,6 +58,14 @@
               hx-target="this" hx-swap="outerHTML">
         {% if video.favorited %}♥{% else %}♡{% endif %} {{ 'Favorited' if video.favorited else 'Favorite' }}
       </button>
+      <button class="detail-action-btn"
+              hx-post="/videos/{{ video.id }}/reanalyze"
+              hx-swap="none"
+              hx-indicator="#reanalyze-indicator"
+              onclick="this.textContent='Analyzing…'; this.disabled=true;">
+        Re-analyze
+      </button>
+      <span id="reanalyze-indicator" class="htmx-indicator spinner"></span>
       <form method="post" action="/videos/{{ video.id }}/delete" style="margin:0;"
             onsubmit="return confirm('Delete this video?')">
         <button type="submit" class="detail-action-btn delete-btn">Delete</button>

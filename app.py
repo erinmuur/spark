@@ -244,6 +244,17 @@ def video_detail(id):
     return render_template('video_detail.html', video=video, statuses=CAMPAIGN_STATUSES)
 
 
+@app.route('/videos/<int:id>/reanalyze', methods=['POST'])
+def video_reanalyze(id):
+    video = Video.query.get_or_404(id)
+    video.analysis = None
+    video.framework_id = None
+    video.video_format = None
+    db.session.commit()
+    threading.Thread(target=classify_in_background, args=(id,), daemon=True).start()
+    return Response('', status=204, headers={'HX-Redirect': f'/videos/{id}'})
+
+
 @app.route('/videos/<int:id>/delete', methods=['POST'])
 def video_delete(id):
     video = Video.query.get_or_404(id)
