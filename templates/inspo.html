@@ -128,7 +128,7 @@ document.addEventListener('click', function(e) {
         {% if video.platform in ['tiktok', 'instagram'] %}
           {% if video.thumbnail_url %}
             <img src="/thumbnails/{{ video.id }}"
-                 style="width:100%; aspect-ratio:9/16; object-fit:cover; display:block; border-radius:12px;" />
+                 style="width:100%; aspect-ratio:9/16; object-fit:cover; display:block;" />
           {% else %}
             <div style="width:100%; aspect-ratio:9/16; background:#111; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#444; font-size:2rem;">▶</div>
           {% endif %}
@@ -164,27 +164,38 @@ document.addEventListener('click', function(e) {
 </div>
 
 <style>
-/* Masonry columns layout */
+/* Masonry columns layout — 4 columns */
 .inspo-grid {
-  display: block !important;     /* override .video-grid CSS grid */
-  columns: 3;
-  column-gap: 1.25rem;
+  display: block !important;
+  columns: 4;
+  column-gap: 1rem;
 }
-@media (max-width: 960px)  { .inspo-grid { columns: 2; } }
-@media (max-width: 560px)  { .inspo-grid { columns: 1; } }
+@media (max-width: 1100px) { .inspo-grid { columns: 3; } }
+@media (max-width: 720px)  { .inspo-grid { columns: 2; } }
+@media (max-width: 420px)  { .inspo-grid { columns: 1; } }
 
 .inspo-card {
   break-inside: avoid;
   display: inline-block;
   width: 100%;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
   overflow: visible;
   background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
 }
-.inspo-embed-wrapper { position: relative; }
-.inspo-embed { width: 100%; }
+
+/* Rounded corners that actually clip iframe/img content.
+   overflow:hidden alone won't clip cross-origin iframes in WebKit —
+   the radial-gradient mask forces the browser to apply it. */
+.inspo-embed-wrapper {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  color-scheme: dark;
+}
+.inspo-embed { width: 100%; display: block; }
 .inspo-embed blockquote { margin: 0 !important; max-width: 100% !important; min-width: 0 !important; width: 100% !important; }
 .inspo-embed iframe { width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
 .embed-fallback {
@@ -205,7 +216,7 @@ document.addEventListener('click', function(e) {
   padding-top: 0.75rem;
   transition: background 0.2s;
   z-index: 9999;
-  border-radius: 8px 8px 0 0;
+  border-radius: 12px;
   cursor: pointer;
 }
 .embed-overlay.active {
