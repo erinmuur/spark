@@ -91,6 +91,7 @@ def migrate_db():
         ('video', 'transcript', 'TEXT'),
         ('video', 'embed_html', 'TEXT'),
         ('video', 'favorited', 'BOOLEAN DEFAULT 0'),
+        ('video', 'video_format', 'TEXT'),
         ('campaign', 'posted_url', 'TEXT'),
         ('campaign', 'posted_at', 'DATETIME'),
         ('campaign', 'views', 'INTEGER'),
@@ -128,17 +129,19 @@ def seed_db():
 
 
 def classify_in_background(video_id, frames=None, transcript=None):
-    """Run framework classification in a background thread."""
+    """Run framework + format classification in a background thread."""
     with app.app_context():
         video = Video.query.get(video_id)
         if not video:
             return
         frameworks = Framework.query.all()
-        framework_id, analysis = ai.classify_video(video, frameworks, frames=frames, transcript=transcript)
+        framework_id, analysis, video_format = ai.classify_video(video, frameworks, frames=frames, transcript=transcript)
         if framework_id:
             video.framework_id = framework_id
         if analysis:
             video.analysis = analysis
+        if video_format:
+            video.video_format = video_format
         db.session.commit()
 
 
@@ -597,11 +600,24 @@ def _run_backfill_embeds():
         backfill_embeds()
 
 
+def _run_backfill_formats():
+    """Classify UGC format for any existing videos that don't have one yet."""
+    with app.app_context():
+        videos = Video.query.filter(Video.video_format.is_(None)).all()
+        for v in videos:
+            fmt = ai.classify_format(v)
+            if fmt:
+                v.video_format = fmt
+        if videos:
+            db.session.commit()
+
+
 with app.app_context():
     migrate_db()
     seed_db()
 
 threading.Thread(target=_run_backfill_embeds, daemon=True).start()
+threading.Thread(target=_run_backfill_formats, daemon=True).start()
 
 if __name__ == '__main__':
     app.run(port=5003, debug=True)

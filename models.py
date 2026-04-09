@@ -34,6 +34,7 @@ class Video(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     favorited = db.Column(db.Boolean, default=False)
+    video_format = db.Column(db.String(50))  # POV, Talking Head, etc.
 
     campaigns = db.relationship('Campaign', backref='video', lazy=True, cascade='all, delete-orphan')
 

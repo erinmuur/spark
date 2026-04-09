@@ -46,6 +46,9 @@
       {% if video.framework %}
         <span class="framework-tag">{{ video.framework.name }}</span>
       {% endif %}
+      {% if video.video_format %}
+        <span class="format-tag">{{ video.video_format }}</span>
+      {% endif %}
       {% if video.favorited %}<span style="color:#ef4444;">♥</span>{% endif %}
       <span style="font-size:0.75rem; color:var(--pico-muted-color); margin-left:auto;">
         Added {{ video.created_at.strftime('%b %d, %Y') }}
