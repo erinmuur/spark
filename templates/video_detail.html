@@ -10,7 +10,31 @@
 
   <!-- Left: embed -->
   <div class="detail-embed">
-    {% if video.embed_html %}
+    {% if video.platform == 'twitter' %}
+      <div class="tweet-card-detail">
+        <div class="tweet-card-detail-header">
+          <div class="tweet-card-detail-avatar">
+            <img src="https://unavatar.io/twitter/{{ video.url | twitter_handle }}"
+                 onerror="this.style.display='none'"
+                 style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" />
+          </div>
+          <div class="tweet-card-detail-meta">
+            <span class="tweet-card-detail-name">{{ video.creator or 'Unknown' }}</span>
+            <span class="tweet-card-detail-handle">@{{ video.url | twitter_handle }}</span>
+          </div>
+          <a href="{{ video.url }}" target="_blank" rel="noopener" style="margin-left:auto; color:#e7e9ea;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/>
+            </svg>
+          </a>
+        </div>
+        <p class="tweet-card-detail-text">{{ video.caption or video.title or '' }}</p>
+        {% if video.thumbnail_url %}
+          <img src="/thumbnails/{{ video.id }}"
+               style="width:100%; border-radius:8px; display:block; object-fit:cover;" />
+        {% endif %}
+      </div>
+    {% elif video.embed_html %}
       {{ video.embed_html | dark_embed | safe }}
     {% elif video.platform == 'instagram' %}
       <blockquote class="instagram-media"
@@ -125,5 +149,49 @@
 .detail-action-btn:hover { border-color: var(--pico-color); color: var(--pico-color); }
 .fav-btn-detail.active { color: #ef4444 !important; border-color: #ef4444 !important; }
 .delete-btn:hover { color: #ef4444 !important; border-color: #ef4444 !important; }
+
+/* Custom tweet card for detail page */
+.tweet-card-detail {
+  background: #15202b;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tweet-card-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tweet-card-detail-avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: #2a3f54;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.tweet-card-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tweet-card-detail-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #e7e9ea;
+}
+.tweet-card-detail-handle {
+  font-size: 0.82rem;
+  color: #6e767d;
+}
+.tweet-card-detail-text {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #e7e9ea;
+  margin: 0;
+  word-break: break-word;
+}
 </style>
 {% endblock %}
