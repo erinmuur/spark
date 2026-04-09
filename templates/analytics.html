@@ -2,127 +2,260 @@
 {% block title %}Analytics — Spark{% endblock %}
 
 {% block content %}
-<div style="margin-bottom:1.25rem;">
-  <h2 style="margin:0 0 1rem;">Analytics</h2>
-  <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-    <small style="color:var(--pico-muted-color); white-space:nowrap;">Product:</small>
-    <a href="/analytics" class="filter-pill {% if not product_filter %}active{% endif %}">All</a>
-    {% for p in products %}
-    <a href="/analytics?product_id={{ p.id }}"
-       class="filter-pill {% if product_filter == p.id %}active{% endif %}">{{ p.name }}</a>
-    {% endfor %}
+<div style="margin-bottom:1.5rem;">
+  <h2 style="margin:0;">Analytics</h2>
+  <small style="color:var(--pico-muted-color);">Cumulative performance across all campaigns</small>
+</div>
+
+<!-- Stat cards -->
+<div class="dash-stats">
+  <div class="dash-card">
+    <div class="dash-value">{{ '{:,}'.format(total_views) }}</div>
+    <div class="dash-label">Total Views</div>
+  </div>
+  <div class="dash-card">
+    <div class="dash-value">{{ '{:,}'.format(total_likes) }}</div>
+    <div class="dash-label">Total Likes</div>
+  </div>
+  <div class="dash-card">
+    <div class="dash-value">{{ '{:,}'.format(total_comments) }}</div>
+    <div class="dash-label">Total Comments</div>
+  </div>
+  <div class="dash-card">
+    <div class="dash-value">{{ '{:,}'.format(total_saves) }}</div>
+    <div class="dash-label">Total Saves</div>
   </div>
 </div>
 
-{% if not posted %}
+{% if not campaigns %}
 <div style="text-align:center; padding:4rem 0; color:var(--pico-muted-color);">
   <p style="font-size:2rem;">📊</p>
-  <p>No posted metrics yet. Open a campaign and log its performance under "Posted video metrics".</p>
+  <p>No campaigns yet. Create a campaign and add video metrics to see analytics.</p>
 </div>
 {% else %}
 
-<!-- Summary strip -->
-<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:1rem; margin-bottom:2rem;">
-  <div class="stat-card">
-    <div class="stat-value">{{ posted|length }}</div>
-    <div class="stat-label">Videos posted</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-value">{{ "{:,}".format(total_views) }}</div>
-    <div class="stat-label">Total views</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-value">{{ "{:,}".format(total_likes) }}</div>
-    <div class="stat-label">Total likes</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-value">{{ "{:,}".format(total_comments) }}</div>
-    <div class="stat-label">Total comments</div>
-  </div>
-  {% if best %}
-  <div class="stat-card" style="grid-column: span 2;">
-    <div class="stat-label" style="margin-bottom:0.25rem;">Top performer</div>
-    <div style="font-weight:600; font-size:0.95rem;">
-      {{ best.product.name }} —
-      {% if best.video.creator %}@{{ best.video.creator }}{% else %}{{ best.video.platform }}{% endif %}
-    </div>
-    <div style="font-size:0.85rem; color:var(--pico-muted-color);">
-      {{ "{:,}".format(best.views) }} views
-      {% if best.posted_url %}·
-        <a href="{{ best.posted_url }}" target="_blank">View post ↗</a>
-      {% endif %}
-    </div>
-  </div>
-  {% endif %}
+<!-- Campaign performance table -->
+<div style="margin-bottom:0.75rem;">
+  <h3 style="margin:0; font-size:1rem;">Campaign Performance</h3>
 </div>
 
-<!-- Performance table -->
-<table>
+<div class="dash-table-wrapper">
+<table class="dash-table sortable-table" id="campaign-table">
   <thead>
     <tr>
-      <th>Product</th>
-      <th>Creator</th>
-      <th>Framework</th>
-      <th style="text-align:right;">Views</th>
-      <th style="text-align:right;">Likes</th>
-      <th style="text-align:right;">Comments</th>
-      <th style="text-align:right;">Shares</th>
-      <th style="text-align:right;">Saves</th>
-      <th>Posted</th>
-      <th></th>
+      <th class="sortable" data-col="0" data-type="text">Campaign <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="1" data-type="num" style="text-align:center;">Videos <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="2" data-type="num" style="text-align:right;">Views <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="3" data-type="num" style="text-align:right;">Likes <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="4" data-type="num" style="text-align:right;">Comments <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="5" data-type="num" style="text-align:right;">Saves <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="6" data-type="date">Created <span class="sort-arrow"></span></th>
     </tr>
   </thead>
   <tbody>
-    {% for c in posted %}
-    <tr>
-      <td><strong>{{ c.product.name }}</strong></td>
-      <td style="font-size:0.85rem;">
-        {% if c.video.creator %}@{{ c.video.creator }}{% else %}
-          <span class="badge badge-{{ c.video.platform or 'unknown' }}">{{ c.video.platform or '?' }}</span>
+    {% for c in campaigns %}
+    <tr onclick="window.location='/campaigns/{{ c.id }}'" style="cursor:pointer;"
+        data-views="{{ c.total_views or 0 }}"
+        data-likes="{{ c.total_likes or 0 }}"
+        data-comments="{{ c.total_comments or 0 }}"
+        data-saves="{{ c.total_saves or 0 }}">
+      <td data-val="{{ c.display_name }}">
+        <strong>{{ c.display_name }}</strong>
+        {% if c.product %}
+        <div style="font-size:0.75rem; color:rgba(255,255,255,0.35); margin-top:1px;">{{ c.product.name }}</div>
         {% endif %}
       </td>
-      <td style="font-size:0.8rem;">
-        {% if c.video.framework %}
-          <span class="framework-tag">{{ c.video.framework.name }}</span>
-        {% else %}—{% endif %}
-      </td>
-      <td style="text-align:right; font-weight:600;">{{ "{:,}".format(c.views) if c.views is not none else '—' }}</td>
-      <td style="text-align:right;">{{ "{:,}".format(c.likes) if c.likes is not none else '—' }}</td>
-      <td style="text-align:right;">{{ "{:,}".format(c.comments) if c.comments is not none else '—' }}</td>
-      <td style="text-align:right;">{{ "{:,}".format(c.shares) if c.shares is not none else '—' }}</td>
-      <td style="text-align:right;">{{ "{:,}".format(c.saves) if c.saves is not none else '—' }}</td>
-      <td style="font-size:0.8rem; white-space:nowrap;">
-        {{ c.posted_at.strftime('%b %d, %Y') if c.posted_at else '—' }}
-      </td>
-      <td>
-        <a href="/campaigns/{{ c.id }}" style="font-size:0.8rem;">Brief ↗</a>
-        {% if c.posted_url %}
-          · <a href="{{ c.posted_url }}" target="_blank" style="font-size:0.8rem;">Post ↗</a>
-        {% endif %}
-      </td>
+      <td style="text-align:center; font-variant-numeric:tabular-nums;" data-val="{{ c.campaign_videos|length }}">{{ c.campaign_videos|length }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ c.total_views or 0 }}">{{ '{:,}'.format(c.total_views) if c.total_views else '—' }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ c.total_likes or 0 }}">{{ '{:,}'.format(c.total_likes) if c.total_likes else '—' }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ c.total_comments or 0 }}">{{ '{:,}'.format(c.total_comments) if c.total_comments else '—' }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ c.total_saves or 0 }}">{{ '{:,}'.format(c.total_saves) if c.total_saves else '—' }}</td>
+      <td style="font-size:0.8rem; white-space:nowrap;" data-val="{{ c.created_at.strftime('%Y%m%d') }}">{{ c.created_at.strftime('%b %d') }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
+
+<!-- Per-video breakdown (only videos with metrics) -->
+{% set all_cvs = [] %}
+{% for c in campaigns %}
+  {% for cv in c.campaign_videos %}
+    {% if cv.views or cv.likes or cv.comments or cv.saves %}
+      {% if all_cvs.append((c, cv)) %}{% endif %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+
+{% if all_cvs %}
+<details style="margin-top:2rem;">
+  <summary style="font-size:1rem; font-weight:600; cursor:pointer; color:rgba(255,255,255,0.7); margin-bottom:0.75rem;">Video Breakdown <span style="font-size:0.75rem; font-weight:400; color:rgba(255,255,255,0.3);">({{ all_cvs|length }})</span></summary>
+
+<div class="dash-table-wrapper">
+<table class="dash-table sortable-table" id="video-table">
+  <thead>
+    <tr>
+      <th class="sortable" data-col="0" data-type="text">Video <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="1" data-type="text">Campaign <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="2" data-type="num" style="text-align:right;">Views <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="3" data-type="num" style="text-align:right;">Likes <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="4" data-type="num" style="text-align:right;">Comments <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="5" data-type="num" style="text-align:right;">Shares <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="6" data-type="num" style="text-align:right;">Saves <span class="sort-arrow"></span></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c, cv in all_cvs %}
+    <tr>
+      <td data-val="{{ cv.video.creator or '' }}">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span class="badge badge-{{ cv.video.platform or 'unknown' }}">{{ cv.video.platform or '?' }}</span>
+          <div>
+            {% if cv.video.creator %}<span style="font-size:0.82rem;">@{{ cv.video.creator }}</span>{% endif %}
+            {% if cv.video.title %}
+            <div style="font-size:0.75rem; color:rgba(255,255,255,0.4); max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ cv.video.title }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </td>
+      <td style="font-size:0.82rem;" data-val="{{ c.display_name }}">{{ c.display_name }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ cv.views or 0 }}">{{ '{:,}'.format(cv.views) if cv.views else '—' }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ cv.likes or 0 }}">{{ '{:,}'.format(cv.likes) if cv.likes else '—' }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ cv.comments or 0 }}">{{ '{:,}'.format(cv.comments) if cv.comments else '—' }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ cv.shares or 0 }}">{{ '{:,}'.format(cv.shares) if cv.shares else '—' }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ cv.saves or 0 }}">{{ '{:,}'.format(cv.saves) if cv.saves else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+</details>
+{% endif %}
+
 {% endif %}
 
 <style>
-  .stat-card {
-    border: 1px solid var(--pico-muted-border-color);
-    border-radius: 8px;
-    padding: 1rem 1.25rem;
-  }
-  .stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    line-height: 1.1;
-    margin-bottom: 0.25rem;
-  }
-  .stat-label {
-    font-size: 0.8rem;
-    color: var(--pico-muted-color);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+@media (max-width: 720px) { .dash-stats { grid-template-columns: repeat(2, 1fr); } }
+.dash-card {
+  background: #000;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+.dash-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  margin-bottom: 4px;
+  color: #efefef;
+}
+.dash-label {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.dash-table-wrapper {
+  overflow-x: auto;
+}
+.dash-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.dash-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,0.4);
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  white-space: nowrap;
+}
+.dash-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 0.85rem;
+}
+.dash-table tbody tr:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+/* Sortable columns */
+.dash-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+.dash-table th.sortable:hover {
+  color: rgba(255,255,255,0.7);
+}
+.dash-table th.sortable.asc,
+.dash-table th.sortable.desc {
+  color: var(--spark-orange);
+}
+.sort-arrow {
+  display: inline-block;
+  font-size: 0.6rem;
+  margin-left: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.dash-table th.sortable:hover .sort-arrow { opacity: 0.4; }
+.dash-table th.sortable:hover .sort-arrow::after { content: '▲'; }
+.dash-table th.sortable.asc .sort-arrow { opacity: 1; }
+.dash-table th.sortable.asc .sort-arrow::after { content: '▲'; }
+.dash-table th.sortable.desc .sort-arrow { opacity: 1; }
+.dash-table th.sortable.desc .sort-arrow::after { content: '▼'; }
 </style>
+
+<script>
+document.querySelectorAll('.sortable-table').forEach(function(table) {
+  table.querySelectorAll('th.sortable').forEach(function(th) {
+    th.addEventListener('click', function() {
+      var col = parseInt(th.dataset.col);
+      var type = th.dataset.type;
+      var tbody = table.querySelector('tbody');
+      var rows = Array.from(tbody.querySelectorAll('tr'));
+      var isAsc = th.classList.contains('asc');
+
+      // Clear all sort states in this table
+      table.querySelectorAll('th.sortable').forEach(function(h) {
+        h.classList.remove('asc', 'desc');
+      });
+
+      // Toggle direction
+      var dir = isAsc ? 'desc' : 'asc';
+      th.classList.add(dir);
+
+      rows.sort(function(a, b) {
+        var aVal = a.children[col].getAttribute('data-val') || a.children[col].textContent.trim();
+        var bVal = b.children[col].getAttribute('data-val') || b.children[col].textContent.trim();
+
+        if (type === 'num') {
+          aVal = parseFloat(aVal) || 0;
+          bVal = parseFloat(bVal) || 0;
+          return dir === 'asc' ? aVal - bVal : bVal - aVal;
+        } else {
+          aVal = aVal.toLowerCase();
+          bVal = bVal.toLowerCase();
+          if (aVal < bVal) return dir === 'asc' ? -1 : 1;
+          if (aVal > bVal) return dir === 'asc' ? 1 : -1;
+          return 0;
+        }
+      });
+
+      rows.forEach(function(row) { tbody.appendChild(row); });
+    });
+  });
+});
+</script>
 {% endblock %}

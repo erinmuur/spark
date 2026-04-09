@@ -51,10 +51,31 @@ class Product(db.Model):
     campaigns = db.relationship('Campaign', backref='product', lazy=True)
 
 
+class CampaignVideo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey('campaign.id'), nullable=False)
+    video_id = db.Column(db.Integer, db.ForeignKey('video.id'), nullable=False)
+    views = db.Column(db.Integer)
+    likes = db.Column(db.Integer)
+    comments = db.Column(db.Integer)
+    shares = db.Column(db.Integer)
+    saves = db.Column(db.Integer)
+    posted_url = db.Column(db.String)
+    posted_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    campaign = db.relationship('Campaign', backref=db.backref('campaign_videos', lazy=True, cascade='all, delete-orphan'))
+    video = db.relationship('Video', backref=db.backref('campaign_video_links', lazy=True))
+
+    __table_args__ = (db.UniqueConstraint('campaign_id', 'video_id', name='uq_campaign_video'),)
+
+
 class Campaign(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    video_id = db.Column(db.Integer, db.ForeignKey('video.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    name = db.Column(db.String(200))
+    description = db.Column(db.Text)
+    video_id = db.Column(db.Integer, db.ForeignKey('video.id'), nullable=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=True)
     context_notes = db.Column(db.Text)
     concept = db.Column(db.Text)
     hook = db.Column(db.Text)
@@ -62,7 +83,7 @@ class Campaign(db.Model):
     visual_notes = db.Column(db.Text)
     cta = db.Column(db.Text)
     status = db.Column(db.String(20), default='Drafting')  # Drafting, Pitching, Assigned, Complete
-    # Posted video metrics
+    # Posted video metrics (legacy, per-campaign)
     posted_url = db.Column(db.String)
     posted_at = db.Column(db.DateTime)
     views = db.Column(db.Integer)
@@ -72,6 +93,34 @@ class Campaign(db.Model):
     saves = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def total_views(self):
+        return sum(cv.views or 0 for cv in self.campaign_videos)
+
+    @property
+    def total_likes(self):
+        return sum(cv.likes or 0 for cv in self.campaign_videos)
+
+    @property
+    def total_comments(self):
+        return sum(cv.comments or 0 for cv in self.campaign_videos)
+
+    @property
+    def total_shares(self):
+        return sum(cv.shares or 0 for cv in self.campaign_videos)
+
+    @property
+    def total_saves(self):
+        return sum(cv.saves or 0 for cv in self.campaign_videos)
+
+    @property
+    def display_name(self):
+        if self.name:
+            return self.name
+        if self.product:
+            return f'{self.product.name} Campaign'
+        return f'Campaign #{self.id}'
 
 
 DEFAULT_FRAMEWORKS = [

@@ -58,56 +58,167 @@ def extract_video_urls(text):
     return result
 
 
+def _fetch_via_subprocess(url):
+    """Use yt-dlp CLI in a subprocess — avoids in-process TikTok extraction bugs."""
+    result = subprocess.run(
+        ['yt-dlp', '--dump-json', '--skip-download', '--no-warnings',
+         '--extractor-args', 'tiktok:api_hostname=api22-normal-c-alisg.tiktokv.com',
+         url],
+        capture_output=True, text=True, timeout=30
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return json.loads(result.stdout)
+    return None
+
+
+def _clean_url(url):
+    """Strip tracking query params from TikTok/Instagram URLs that break extractors."""
+    from urllib.parse import urlparse, urlunparse
+    parsed = urlparse(url)
+    if 'tiktok.com' in parsed.netloc or 'instagram.com' in parsed.netloc:
+        return urlunparse(parsed._replace(query='', fragment=''))
+    return url
+
+
 def fetch_metadata(url):
     """Fetch video metadata via yt-dlp without downloading. Returns a dict."""
-    ydl_opts = {
-        'skip_download': True,
-        'quiet': True,
-        'no_warnings': True,
-        'extract_flat': False,
+    import time as _time
+    url = _clean_url(url)
+
+    is_tiktok = 'tiktok.com' in url
+    max_attempts = 3 if is_tiktok else 1
+    last_err = None
+    info = None
+
+    for attempt in range(max_attempts):
+        if attempt > 0:
+            _time.sleep(attempt * 4)  # 4s, 8s backoff
+        try:
+            # Use subprocess for TikTok to avoid in-process extraction issues
+            if is_tiktok:
+                info = _fetch_via_subprocess(url)
+            else:
+                ydl_opts = {
+                    'skip_download': True,
+                    'quiet': True,
+                    'no_warnings': True,
+                    'extract_flat': False,
+                }
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+
+            if info is not None:
+                break
+            last_err = 'no info returned'
+        except Exception as e:
+            last_err = str(e)
+            continue
+    else:
+        # All attempts failed — try Instagram fallback or return error
+        if 'instagram.com' in url:
+            fallback = _scrape_instagram_meta(url)
+            if fallback:
+                return fallback
+        return {'error': last_err or 'fetch failed'}
+
+    if info is None:
+        return None
+
+    thumbnail = info.get('thumbnail', '')
+    thumbnails = info.get('thumbnails', [])
+    if thumbnails:
+        best = max(thumbnails, key=lambda t: (t.get('width', 0) or 0) * (t.get('height', 0) or 0), default=None)
+        if best:
+            thumbnail = best.get('url', thumbnail)
+
+    creator = (
+        info.get('uploader')
+        or info.get('creator')
+        or info.get('channel')
+        or ''
+    )
+
+    return {
+        'title': info.get('title', ''),
+        'creator': creator,
+        'caption': info.get('description', ''),
+        'thumbnail_url': thumbnail,
+        'duration': info.get('duration', 0),
+        'platform': detect_platform(url),
+        'view_count': info.get('view_count'),
+        'like_count': info.get('like_count'),
+        'comment_count': info.get('comment_count'),
+        'share_count': info.get('repost_count') or info.get('share_count'),
+        'save_count': info.get('digg_count') or info.get('favorite_count'),
+        'raw': json.dumps({
+            'title': info.get('title'),
+            'uploader': info.get('uploader'),
+            'description': info.get('description'),
+            'duration': info.get('duration'),
+            'view_count': info.get('view_count'),
+            'like_count': info.get('like_count'),
+            'comment_count': info.get('comment_count'),
+            'repost_count': info.get('repost_count'),
+            'digg_count': info.get('digg_count'),
+            'upload_date': info.get('upload_date'),
+            'timestamp': info.get('timestamp'),
+            'tags': info.get('tags'),
+            'webpage_url': info.get('webpage_url'),
+        }, default=str)
     }
+
+
+def _scrape_instagram_meta(url):
+    """Fallback: scrape Instagram post page for thumbnail and basic info."""
+    import requests
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            if info is None:
-                return None
+        r = requests.get(url, timeout=10, headers={
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        })
+        if r.status_code != 200:
+            return None
 
-            thumbnail = info.get('thumbnail', '')
-            thumbnails = info.get('thumbnails', [])
-            if thumbnails:
-                best = max(thumbnails, key=lambda t: (t.get('width', 0) or 0) * (t.get('height', 0) or 0), default=None)
-                if best:
-                    thumbnail = best.get('url', thumbnail)
+        # Extract CDN thumbnail
+        images = re.findall(r'(https://scontent[^"\'>\s]+)', r.text)
+        thumbnail = images[0].replace('&amp;', '&') if images else ''
 
-            creator = (
-                info.get('uploader')
-                or info.get('creator')
-                or info.get('channel')
-                or ''
-            )
+        # Extract title from <title> tag
+        title_match = re.search(r'<title>([^<]+)</title>', r.text)
+        title = title_match.group(1).strip() if title_match else ''
 
-            return {
-                'title': info.get('title', ''),
-                'creator': creator,
-                'caption': info.get('description', ''),
-                'thumbnail_url': thumbnail,
-                'duration': info.get('duration', 0),
-                'platform': detect_platform(url),
-                'raw': json.dumps({
-                    'title': info.get('title'),
-                    'uploader': info.get('uploader'),
-                    'description': info.get('description'),
-                    'duration': info.get('duration'),
-                    'view_count': info.get('view_count'),
-                    'like_count': info.get('like_count'),
-                    'upload_date': info.get('upload_date'),
-                    'timestamp': info.get('timestamp'),
-                    'tags': info.get('tags'),
-                    'webpage_url': info.get('webpage_url'),
-                }, default=str)
-            }
-    except Exception as e:
-        return {'error': str(e)}
+        # Try to extract username from title like "Post by username"
+        creator = ''
+        creator_match = re.search(r'(?:Post by|@)\s*(\w[\w.]+)', title)
+        if creator_match:
+            creator = creator_match.group(1)
+
+        # Build embed HTML
+        shortcode_match = re.search(r'/p/([^/]+)', url)
+        shortcode = shortcode_match.group(1) if shortcode_match else ''
+        embed_html = (
+            f'<blockquote class="instagram-media" '
+            f'data-instgrm-permalink="https://www.instagram.com/p/{shortcode}/" '
+            f'data-instgrm-version="14" style="max-width:540px;width:100%;"></blockquote>'
+        ) if shortcode else ''
+
+        return {
+            'title': title,
+            'creator': creator,
+            'caption': '',
+            'thumbnail_url': thumbnail,
+            'duration': 0,
+            'platform': 'instagram',
+            'view_count': None,
+            'like_count': None,
+            'comment_count': None,
+            'share_count': None,
+            'save_count': None,
+            'embed_html': embed_html,
+            'raw': json.dumps({'title': title, 'uploader': creator, 'type': 'image_post'}),
+        }
+    except Exception:
+        return None
 
 
 def fetch_oembed(url, platform):
