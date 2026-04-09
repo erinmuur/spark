@@ -140,16 +140,18 @@ document.addEventListener('click', function(e) {
           </div>
         {% endif %}
       </div>
-      <!-- Overlay sits on top of iframe to capture hover + show actions -->
-      <div class="embed-overlay">
+      <!-- Overlay sits above iframe (z-index 9999) to capture hover + show actions -->
+      <div class="embed-overlay" onclick="window.location='/videos/{{ video.id }}'">
         <div class="embed-actions">
           <form method="post" action="/videos/{{ video.id }}/delete"
-                onsubmit="return confirm('Delete this video?')" style="margin:0;">
+                onsubmit="return confirm('Delete this video?')" style="margin:0;"
+                onclick="event.stopPropagation()">
             <button type="submit" class="overlay-btn" title="Delete">✕</button>
           </form>
           <button class="overlay-btn fav-btn {% if video.favorited %}active{% endif %}"
                   hx-post="/videos/{{ video.id }}/favorite"
                   hx-target="this" hx-swap="outerHTML"
+                  onclick="event.stopPropagation()"
                   title="Favorite">
             {% if video.favorited %}♥{% else %}♡{% endif %}
           </button>
@@ -211,7 +213,7 @@ document.addEventListener('click', function(e) {
   border-radius: 8px 8px 0 0;
 }
 
-/* Hover overlay */
+/* Hover overlay — z-index must exceed Twitter's injected iframe */
 .embed-overlay {
   position: absolute;
   inset: 0;
@@ -220,8 +222,9 @@ document.addEventListener('click', function(e) {
   align-items: center;
   justify-content: center;
   transition: background 0.2s;
-  z-index: 5;
+  z-index: 9999;
   border-radius: 8px 8px 0 0;
+  cursor: pointer;
 }
 .embed-overlay:hover {
   background: rgba(0, 0, 0, 0.45);
