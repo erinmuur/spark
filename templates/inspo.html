@@ -276,14 +276,18 @@ document.addEventListener('click', function(e) {
 {% endif %}
 
 <script>
-// CSS :hover doesn't fire when mouse is over an iframe (Twitter/TikTok embeds).
-// Use document mousemove + getBoundingClientRect to detect position instead.
 document.addEventListener('mousemove', function(e) {
   document.querySelectorAll('.inspo-embed-wrapper').forEach(function(wrapper) {
     var rect = wrapper.getBoundingClientRect();
     var inside = e.clientX >= rect.left && e.clientX <= rect.right &&
                  e.clientY >= rect.top  && e.clientY <= rect.bottom;
-    wrapper.querySelector('.embed-overlay').classList.toggle('active', inside);
+    var overlay = wrapper.querySelector('.embed-overlay');
+    var actions = wrapper.querySelector('.embed-actions');
+    overlay.style.background = inside ? 'rgba(0,0,0,0.45)' : 'transparent';
+    if (actions) {
+      actions.style.opacity = inside ? '1' : '0';
+      actions.style.pointerEvents = inside ? 'auto' : 'none';
+    }
   });
 });
 </script>
