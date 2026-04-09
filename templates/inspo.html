@@ -123,7 +123,7 @@ document.addEventListener('click', function(e) {
   <div class="video-card inspo-card">
 
     <!-- Platform embed + hover overlay -->
-    <div class="inspo-embed-wrapper">
+    <div class="inspo-embed-wrapper {% if video.platform in ['tiktok', 'instagram'] %}thumbnail-wrapper{% endif %}">
       <div class="inspo-embed">
         {% if video.platform in ['tiktok', 'instagram'] %}
           {% if video.thumbnail_url %}
@@ -183,11 +183,12 @@ document.addEventListener('click', function(e) {
   border-radius: 0 !important;
 }
 
-/* Rounded corners that clip all content including cross-origin iframes.
-   background provides a dark base while the embed loads.
-   -webkit-mask forces border-radius to apply in WebKit (overflow:hidden alone won't clip iframes). */
+/* Base wrapper — no background so Twitter's own card styling shows cleanly */
 .inspo-embed-wrapper {
   position: relative;
+}
+/* Thumbnail wrapper (TikTok / Instagram) — clips image to rounded container */
+.inspo-embed-wrapper.thumbnail-wrapper {
   border-radius: 12px;
   overflow: hidden;
   background: #181818;
