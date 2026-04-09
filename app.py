@@ -1,11 +1,12 @@
 import os
+import json
 import threading
 from datetime import datetime
 
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, Response, abort
 from models import db, Video, Framework, Product, Campaign, DEFAULT_FRAMEWORKS, DEFAULT_PRODUCTS, _STALE_DEFAULT_FRAMEWORKS
 import ai
 
@@ -16,6 +17,10 @@ _db_url = os.environ.get('DATABASE_URL', 'sqlite:///spark.db')
 if _db_url.startswith('sqlite:////'):
     _db_dir = os.path.dirname(_db_url.replace('sqlite:////', '/'))
     os.makedirs(_db_dir, exist_ok=True)
+    _data_dir = _db_dir
+else:
+    _data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+    os.makedirs(_data_dir, exist_ok=True)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -26,6 +31,42 @@ db.init_app(app)
 # Initialize DB on startup (runs under both gunicorn and flask dev server)
 with app.app_context():
     db.create_all()
+
+
+@app.template_filter('fromjson')
+def fromjson_filter(s):
+    if not s:
+        return {}
+    try:
+        return json.loads(s)
+    except Exception:
+        return {}
+
+
+@app.template_filter('humannum')
+def humannum_filter(n):
+    if n is None:
+        return ''
+    n = int(n)
+    if n >= 1_000_000:
+        return f'{n / 1_000_000:.1f}M'
+    if n >= 1_000:
+        return f'{n / 1_000:.0f}K'
+    return str(n)
+
+
+def _cache_thumbnail(video_id, url):
+    """Download and cache a thumbnail to disk."""
+    import requests as req
+    try:
+        thumb_dir = os.path.join(_data_dir, 'thumbnails')
+        os.makedirs(thumb_dir, exist_ok=True)
+        r = req.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0 (compatible)'})
+        if r.status_code == 200:
+            with open(os.path.join(thumb_dir, f'{video_id}.jpg'), 'wb') as f:
+                f.write(r.content)
+    except Exception:
+        pass
 
 
 def migrate_db():
@@ -81,6 +122,28 @@ def classify_in_background(video_id, frames=None, transcript=None):
         if analysis:
             video.analysis = analysis
         db.session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Thumbnails
+# ---------------------------------------------------------------------------
+
+@app.route('/thumbnails/<int:video_id>')
+def thumbnail(video_id):
+    thumb_path = os.path.join(_data_dir, 'thumbnails', f'{video_id}.jpg')
+    if os.path.exists(thumb_path):
+        return send_file(thumb_path, mimetype='image/jpeg')
+    # Proxy from stored URL as fallback (e.g. older videos without cached thumb)
+    video = Video.query.get_or_404(video_id)
+    if not video.thumbnail_url:
+        abort(404)
+    try:
+        import requests as req
+        r = req.get(video.thumbnail_url, timeout=8,
+                    headers={'User-Agent': 'Mozilla/5.0 (compatible)'})
+        return Response(r.content, mimetype=r.headers.get('content-type', 'image/jpeg'))
+    except Exception:
+        abort(404)
 
 
 # ---------------------------------------------------------------------------
@@ -409,6 +472,8 @@ def ingest():
                 v.raw_metadata = meta.get('raw', '')
                 duration = meta.get('duration')
                 db.session.commit()
+                if v.thumbnail_url:
+                    _cache_thumbnail(v.id, v.thumbnail_url)
 
             rich = fetch_rich_content(v.url, duration=duration)
             frames = rich.get('frames', [])

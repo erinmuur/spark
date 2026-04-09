@@ -25,21 +25,23 @@
 {% else %}
 <div class="video-grid">
   {% for video in videos %}
+  {% set raw = video.raw_metadata | fromjson %}
   <div class="video-card">
-    {% if video.thumbnail_url %}
-      <img class="thumbnail" src="{{ video.thumbnail_url }}" alt="{{ video.creator or 'Video' }}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+    <a href="{{ video.url }}" target="_blank" rel="noopener" class="thumbnail-link">
+      <img class="thumbnail" src="/thumbnails/{{ video.id }}"
+           alt="{{ video.creator or 'Video' }}" loading="lazy"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
       <div class="thumbnail-placeholder" style="display:none;">
-        {% if video.platform == 'tiktok' %}🎵{% elif video.platform == 'instagram' %}📸{% else %}🐦{% endif %}
+        {% if video.platform == 'tiktok' %}🎵{% elif video.platform == 'instagram' %}📸{% else %}𝕏{% endif %}
       </div>
-    {% else %}
-      <div class="thumbnail-placeholder">
-        {% if video.platform == 'tiktok' %}🎵{% elif video.platform == 'instagram' %}📸{% else %}🐦{% endif %}
+      <div class="thumbnail-overlay">
+        <span class="play-icon">▶</span>
       </div>
-    {% endif %}
+    </a>
 
     <div class="card-body">
       <div class="card-meta">
-        <span class="badge badge-{{ video.platform or 'unknown' }}">{{ video.platform or '?' }}</span>
+        <span class="badge badge-{{ video.platform or 'unknown' }}">{{ (video.platform or '?') | upper }}</span>
         {% if video.framework %}
           <span class="framework-tag">{{ video.framework.name }}</span>
         {% else %}
@@ -55,8 +57,16 @@
         <div class="caption">{{ video.caption }}</div>
       {% endif %}
 
-      <div style="font-size:0.7rem; color:var(--pico-muted-color); margin-top:0.25rem;">
-        {{ video.created_at.strftime('%b %d, %Y') }}
+      <div class="card-stats">
+        {% if raw.view_count %}
+          <span title="Views">👁 {{ raw.view_count | humannum }}</span>
+        {% endif %}
+        {% if raw.like_count %}
+          <span title="Likes">♥ {{ raw.like_count | humannum }}</span>
+        {% endif %}
+        <span style="margin-left:auto; color:var(--pico-muted-color); font-size:0.7rem;">
+          {{ video.created_at.strftime('%b %d, %Y') }}
+        </span>
       </div>
 
       <div class="card-footer">
@@ -66,10 +76,60 @@
           hx-swap="innerHTML">
           Create Campaign
         </button>
+        <a href="{{ video.url }}" target="_blank" rel="noopener" class="outline" role="button"
+           style="width:auto; padding:0.4rem 0.75rem; font-size:0.8rem;">
+          View Original ↗
+        </a>
       </div>
     </div>
   </div>
   {% endfor %}
 </div>
 {% endif %}
+
+<style>
+.thumbnail-link {
+  display: block;
+  position: relative;
+  text-decoration: none;
+}
+.thumbnail-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0);
+  transition: background 0.15s;
+  border-radius: 8px 8px 0 0;
+}
+.thumbnail-link:hover .thumbnail-overlay {
+  background: rgba(0,0,0,0.3);
+}
+.play-icon {
+  color: white;
+  font-size: 2rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+}
+.thumbnail-link:hover .play-icon {
+  opacity: 1;
+}
+.card-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--pico-muted-color);
+  margin: 0.4rem 0;
+}
+.card-footer {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+</style>
 {% endblock %}
