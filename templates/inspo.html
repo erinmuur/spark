@@ -132,6 +132,21 @@ document.addEventListener('click', function(e) {
           {% else %}
             <div style="width:100%; aspect-ratio:9/16; background:#111; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#444; font-size:2rem;">▶</div>
           {% endif %}
+        {% elif video.platform == 'twitter' %}
+          <!-- Custom dark tweet card — no iframe, no corner bleed -->
+          <div class="tweet-card">
+            <div class="tweet-header">
+              <div class="tweet-avatar">{{ (video.creator or '?')[0] | upper }}</div>
+              <div class="tweet-meta">
+                <span class="tweet-name">{{ video.creator or 'Unknown' }}</span>
+                <span class="tweet-handle">@{{ video.creator or 'unknown' }}</span>
+              </div>
+              <svg class="tweet-x-logo" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/>
+              </svg>
+            </div>
+            <p class="tweet-text">{{ video.caption or video.title or '' }}</p>
+          </div>
         {% elif video.embed_html %}
           {{ video.embed_html | dark_embed | safe }}
         {% else %}
@@ -177,25 +192,34 @@ document.addEventListener('click', function(e) {
 
 .inspo-card {
   width: 100%;
-  overflow: visible;
+  overflow: hidden;
   background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
 }
 
-/* Base wrapper — border + rounding around all cards */
+/* Base wrapper — match Ramp4's exact three properties, nothing more */
 .inspo-embed-wrapper {
   position: relative;
   border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
   overflow: hidden;
   -webkit-mask-image: -webkit-radial-gradient(white, black);
-  background: #15202b; /* Twitter dark-mode card background */
 }
-/* Thumbnail wrapper (TikTok / Instagram) — override background */
+/* Thumbnail wrapper (TikTok / Instagram) */
 .inspo-embed-wrapper.thumbnail-wrapper {
   background: #181818;
   color-scheme: dark;
+}
+/* Border as a pseudo-element overlay so it paints ABOVE the iframe,
+   not as part of the clipping element */
+.inspo-embed-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  pointer-events: none;
+  z-index: 10002;
 }
 .inspo-embed { width: 100%; display: block; }
 .inspo-embed blockquote { margin: 0 !important; max-width: 100% !important; min-width: 0 !important; width: 100% !important; }
@@ -263,6 +287,67 @@ document.addEventListener('click', function(e) {
   color: inherit;
 }
 .card-detail-link:hover .caption { color: var(--pico-primary); }
+
+/* Custom tweet card — pure CSS, no iframe, no corner issues */
+.tweet-card {
+  background: #15202b;
+  padding: 14px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tweet-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tweet-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: #2a3f54;
+  color: #8ab4d4;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; font-weight: 700;
+  flex-shrink: 0;
+}
+.tweet-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.tweet-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #e7e9ea;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tweet-handle {
+  font-size: 0.78rem;
+  color: #6e767d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tweet-x-logo {
+  width: 18px; height: 18px;
+  color: #e7e9ea;
+  flex-shrink: 0;
+}
+.tweet-text {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: #e7e9ea;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 </style>
 
 
