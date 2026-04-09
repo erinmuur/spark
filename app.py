@@ -39,7 +39,9 @@ def dark_embed_filter(html):
     if not html:
         return html
     if 'twitter-tweet' in html:
-        html = html.replace('class="twitter-tweet"', 'class="twitter-tweet" data-theme="dark"')
+        # data-width tells Twitter's widget to render at this exact pixel width,
+        # preventing overflow into the container that causes white corner bleed
+        html = html.replace('class="twitter-tweet"', 'class="twitter-tweet" data-theme="dark" data-width="280"')
     if 'tiktok-embed' in html:
         html = html.replace('class="tiktok-embed"', 'class="tiktok-embed" data-background-color="#181818"')
         # Remove hardcoded width constraints so CSS can control the size

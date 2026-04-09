@@ -183,21 +183,23 @@ document.addEventListener('click', function(e) {
   border-radius: 0 !important;
 }
 
-/* Base wrapper — no background so Twitter's own card styling shows cleanly */
+/* Base wrapper — border + rounding around all cards */
 .inspo-embed-wrapper {
   position: relative;
-}
-/* Thumbnail wrapper (TikTok / Instagram) — clips image to rounded container */
-.inspo-embed-wrapper.thumbnail-wrapper {
   border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
   overflow: hidden;
-  background: #181818;
   -webkit-mask-image: -webkit-radial-gradient(white, black);
+  background: #15202b; /* Twitter dark-mode card background */
+}
+/* Thumbnail wrapper (TikTok / Instagram) — override background */
+.inspo-embed-wrapper.thumbnail-wrapper {
+  background: #181818;
   color-scheme: dark;
 }
 .inspo-embed { width: 100%; display: block; }
 .inspo-embed blockquote { margin: 0 !important; max-width: 100% !important; min-width: 0 !important; width: 100% !important; }
-.inspo-embed iframe { width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
+.inspo-embed iframe { width: 100% !important; max-width: 100% !important; min-width: 0 !important; color-scheme: dark; }
 .embed-fallback {
   padding: 2rem;
   text-align: center;
@@ -216,7 +218,6 @@ document.addEventListener('click', function(e) {
   padding-top: 0.75rem;
   transition: background 0.2s;
   z-index: 9999;
-  border-radius: 12px;
   cursor: pointer;
 }
 .embed-overlay.active {
