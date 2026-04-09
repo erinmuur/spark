@@ -58,14 +58,6 @@
               hx-target="this" hx-swap="outerHTML">
         {% if video.favorited %}♥{% else %}♡{% endif %} {{ 'Favorited' if video.favorited else 'Favorite' }}
       </button>
-      <button class="detail-action-btn"
-              hx-post="/videos/{{ video.id }}/reanalyze"
-              hx-swap="none"
-              hx-indicator="#reanalyze-indicator"
-              onclick="this.textContent='Analyzing…'; this.disabled=true;">
-        Re-analyze
-      </button>
-      <span id="reanalyze-indicator" class="htmx-indicator spinner"></span>
       <form method="post" action="/videos/{{ video.id }}/delete" style="margin:0;"
             onsubmit="return confirm('Delete this video?')">
         <button type="submit" class="detail-action-btn delete-btn">Delete</button>
@@ -122,6 +114,7 @@
     </section>
     {% endif %}
 
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
     <button class="secondary"
       hx-get="/campaigns/new?video_id={{ video.id }}"
       hx-target="#modal-content"
@@ -129,6 +122,14 @@
       style="width:auto;">
       + Create Campaign
     </button>
+    <button class="secondary"
+      hx-post="/videos/{{ video.id }}/reanalyze"
+      hx-swap="none"
+      onclick="this.textContent='Analyzing…'; this.disabled=true;"
+      style="width:auto;">
+      Re-analyze
+    </button>
+    </div>
   </div>
 </div>
 
@@ -152,11 +153,13 @@
   border-radius: 6px;
   border: 1px solid var(--pico-muted-border-color);
   background: transparent;
-  color: var(--pico-muted-color);
+  color: #fff;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
 }
-.detail-action-btn:hover { border-color: var(--pico-color); color: var(--pico-color); }
+.detail-action-btn:hover { border-color: var(--pico-color); color: #fff; }
+/* Ensure secondary buttons also have white text */
+.detail-info button.secondary { color: #fff !important; }
 .fav-btn-detail.active { color: #ef4444 !important; border-color: #ef4444 !important; }
 .delete-btn:hover { color: #ef4444 !important; border-color: #ef4444 !important; }
 
