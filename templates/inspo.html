@@ -136,7 +136,11 @@ document.addEventListener('click', function(e) {
           <!-- Custom dark tweet card — no iframe, no corner bleed -->
           <div class="tweet-card">
             <div class="tweet-header">
-              <div class="tweet-avatar">{{ (video.creator or '?')[0] | upper }}</div>
+              <div class="tweet-avatar">
+                <img src="https://unavatar.io/twitter/{{ video.creator }}"
+                     onerror="this.style.display='none';this.parentElement.classList.add('tweet-avatar-fallback')"
+                     style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" />
+              </div>
               <div class="tweet-meta">
                 <span class="tweet-name">{{ video.creator or 'Unknown' }}</span>
                 <span class="tweet-handle">@{{ video.creator or 'unknown' }}</span>
@@ -310,10 +314,15 @@ document.addEventListener('click', function(e) {
   width: 36px; height: 36px;
   border-radius: 50%;
   background: #2a3f54;
-  color: #8ab4d4;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.85rem; font-weight: 700;
+  overflow: hidden;
   flex-shrink: 0;
+}
+.tweet-avatar.tweet-avatar-fallback::after {
+  content: attr(data-initial);
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  color: #8ab4d4;
+  font-size: 0.85rem; font-weight: 700;
 }
 .tweet-meta {
   display: flex;
