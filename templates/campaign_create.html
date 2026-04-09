@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Create Campaign — Spark{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:0.5rem;">
+  <a href="/campaigns" style="font-size:0.85rem; color:var(--pico-muted-color); text-decoration:none;">← Campaigns</a>
+</div>
+
+<h2 style="margin:0 0 1.5rem;">Create Campaign</h2>
+
+<form method="post" action="/campaigns" style="max-width:600px;">
+  <label>
+    Campaign name
+    <input type="text" name="name" required placeholder="e.g. Summer Reading Push" />
+  </label>
+
+  <label>
+    Video URLs
+    <textarea name="video_urls" rows="6" required
+              placeholder="Paste video URLs, one per line&#10;https://www.tiktok.com/@creator/video/123&#10;https://www.instagram.com/reel/abc/"></textarea>
+  </label>
+  <small style="color:var(--pico-muted-color); display:block; margin-top:-0.75rem; margin-bottom:1rem;">
+    Supports TikTok, Instagram Reels, and Twitter/X posts. One URL per line.
+  </small>
+
+  <label>
+    Brief / context
+    <textarea name="description" rows="4"
+              placeholder="What's the angle? Target audience? Any notes for the team..."></textarea>
+  </label>
+
+  <label>
+    Product <small style="color:var(--pico-muted-color);">(optional)</small>
+    <select name="product_id">
+      <option value="">— None —</option>
+      {% for p in products %}
+      <option value="{{ p.id }}">{{ p.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <button type="submit">Create Campaign</button>
+</form>
+{% endblock %}

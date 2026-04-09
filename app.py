@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, Response, abort
-from models import db, Video, Framework, Product, Campaign, DEFAULT_FRAMEWORKS, DEFAULT_PRODUCTS, _STALE_DEFAULT_FRAMEWORKS
+from models import db, Video, Framework, Product, Campaign, CampaignVideo, DEFAULT_FRAMEWORKS, DEFAULT_PRODUCTS, _STALE_DEFAULT_FRAMEWORKS
 import ai
 
 app = Flask(__name__)
@@ -109,6 +109,8 @@ def migrate_db():
         ('campaign', 'comments', 'INTEGER'),
         ('campaign', 'shares', 'INTEGER'),
         ('campaign', 'saves', 'INTEGER'),
+        ('campaign', 'name', 'TEXT'),
+        ('campaign', 'description', 'TEXT'),
     ]
     with db.engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -117,6 +119,73 @@ def migrate_db():
                 conn.commit()
             except Exception:
                 pass  # Column already exists
+
+    # Make video_id and product_id nullable (SQLite requires table recreation)
+    _migrate_campaign_nullable_fks()
+
+
+def _migrate_campaign_nullable_fks():
+    """Recreate campaign table with nullable video_id and product_id."""
+    with db.engine.connect() as conn:
+        try:
+            result = conn.execute(db.text("PRAGMA table_info(campaign)"))
+            cols = {row[1]: row[3] for row in result}  # name -> notnull flag
+            if cols.get('video_id') != 1:
+                return  # Already nullable
+            conn.execute(db.text("ALTER TABLE campaign RENAME TO campaign_old"))
+            conn.execute(db.text("""
+                CREATE TABLE campaign (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
+                    description TEXT,
+                    video_id INTEGER REFERENCES video(id),
+                    product_id INTEGER REFERENCES product(id),
+                    context_notes TEXT, concept TEXT, hook TEXT,
+                    script_outline TEXT, visual_notes TEXT, cta TEXT,
+                    status VARCHAR(20) DEFAULT 'Drafting',
+                    posted_url TEXT, posted_at DATETIME,
+                    views INTEGER, likes INTEGER, comments INTEGER,
+                    shares INTEGER, saves INTEGER,
+                    created_at DATETIME, updated_at DATETIME
+                )
+            """))
+            # Copy data — old table may not have name/description columns
+            old_cols = list(cols.keys())
+            select_parts = []
+            for c in ['id', 'name', 'description', 'video_id', 'product_id',
+                       'context_notes', 'concept', 'hook', 'script_outline',
+                       'visual_notes', 'cta', 'status', 'posted_url', 'posted_at',
+                       'views', 'likes', 'comments', 'shares', 'saves',
+                       'created_at', 'updated_at']:
+                select_parts.append(c if c in old_cols else 'NULL')
+            conn.execute(db.text(
+                f"INSERT INTO campaign SELECT {', '.join(select_parts)} FROM campaign_old"
+            ))
+            conn.execute(db.text("DROP TABLE campaign_old"))
+            conn.commit()
+        except Exception:
+            pass
+
+
+def backfill_campaign_videos():
+    """Create CampaignVideo rows for legacy campaigns that use the old video_id FK."""
+    campaigns = Campaign.query.filter(Campaign.video_id.isnot(None)).all()
+    for c in campaigns:
+        existing = CampaignVideo.query.filter_by(campaign_id=c.id, video_id=c.video_id).first()
+        if not existing:
+            cv = CampaignVideo(
+                campaign_id=c.id,
+                video_id=c.video_id,
+                views=c.views,
+                likes=c.likes,
+                comments=c.comments,
+                shares=c.shares,
+                saves=c.saves,
+                posted_url=c.posted_url,
+                posted_at=c.posted_at,
+            )
+            db.session.add(cv)
+    db.session.commit()
 
 
 def seed_db():
@@ -155,6 +224,86 @@ def classify_in_background(video_id, frames=None, transcript=None):
         db.session.commit()
 
 
+def _process_new_video(video_id):
+    """Background: fetch metadata, embed, transcript, classify for a new video."""
+    with app.app_context():
+        from ingest import fetch_metadata, fetch_rich_content, fetch_oembed
+        v = Video.query.get(video_id)
+        if not v:
+            return
+        meta = fetch_metadata(v.url)
+        duration = None
+        if meta and 'error' not in meta:
+            v.creator = meta.get('creator', '')
+            v.title = meta.get('title', '')
+            v.caption = meta.get('caption', '')
+            v.thumbnail_url = meta.get('thumbnail_url', '')
+            v.raw_metadata = meta.get('raw', '')
+            duration = meta.get('duration')
+            db.session.commit()
+            # Populate metrics on any CampaignVideo rows linked to this video
+            _apply_video_metrics(v.id, meta)
+            if v.thumbnail_url:
+                _cache_thumbnail(v.id, v.thumbnail_url)
+            # Use embed from scraper fallback (e.g. Instagram image posts) or fetch via oEmbed
+            embed = meta.get('embed_html') or fetch_oembed(v.url, v.platform)
+            if embed:
+                v.embed_html = embed
+                db.session.commit()
+        rich = fetch_rich_content(v.url, duration=duration)
+        frames = rich.get('frames', [])
+        transcript = rich.get('transcript', '')
+        if transcript:
+            v.transcript = transcript
+            db.session.commit()
+        classify_in_background(video_id, frames=frames, transcript=transcript)
+
+
+def _apply_video_metrics(video_id, meta):
+    """Write analytics from metadata dict to all CampaignVideo rows for this video."""
+    cvs = CampaignVideo.query.filter_by(video_id=video_id).all()
+    if not cvs:
+        return
+    views = meta.get('view_count')
+    likes = meta.get('like_count')
+    comments = meta.get('comment_count')
+    shares = meta.get('share_count')
+    saves = meta.get('save_count')
+    for cv in cvs:
+        if views is not None:
+            cv.views = views
+        if likes is not None:
+            cv.likes = likes
+        if comments is not None:
+            cv.comments = comments
+        if shares is not None:
+            cv.shares = shares
+        if saves is not None:
+            cv.saves = saves
+    db.session.commit()
+
+
+def find_or_create_videos(urls):
+    """Given a list of URLs, find existing Video records or create new ones."""
+    from ingest import detect_platform, _clean_url
+    videos = []
+    for url in urls:
+        url = _clean_url(url.strip())
+        if not url:
+            continue
+        existing = Video.query.filter_by(url=url).first()
+        if existing:
+            videos.append(existing)
+        else:
+            video = Video(url=url, platform=detect_platform(url))
+            db.session.add(video)
+            db.session.flush()
+            videos.append(video)
+            threading.Thread(target=_process_new_video, args=(video.id,), daemon=True).start()
+    db.session.commit()
+    return videos
+
+
 # ---------------------------------------------------------------------------
 # Thumbnails
 # ---------------------------------------------------------------------------
@@ -188,7 +337,7 @@ def inspo():
     q = request.args.get('q', '').strip()
     sort = request.args.get('sort', 'added_desc')
 
-    query = Video.query
+    query = Video.query.filter(Video.slack_ts.isnot(None), Video.slack_ts != '')
     if q:
         like = f'%{q}%'
         query = query.filter(
@@ -356,50 +505,111 @@ def campaign_new():
     return render_template('partials/campaign_modal.html', video=video, products=products)
 
 
-@app.route('/campaigns', methods=['POST'])
-def campaign_create():
-    video_id = request.form.get('video_id', type=int)
-    product_id = request.form.get('product_id', type=int)
-    context_notes = request.form.get('context_notes', '')
-
-    video = Video.query.get_or_404(video_id)
-    product = Product.query.get_or_404(product_id)
-    framework = video.framework
-
-    brief = ai.generate_campaign(video, framework, product, context_notes)
-
-    campaign = Campaign(
-        video_id=video_id,
-        product_id=product_id,
-        context_notes=context_notes,
-        concept=brief.get('concept', ''),
-        hook=brief.get('hook', ''),
-        script_outline=brief.get('script_outline', ''),
-        visual_notes=brief.get('visual_notes', ''),
-        cta=brief.get('cta', ''),
-    )
-    db.session.add(campaign)
-    db.session.commit()
-
-    if request.headers.get('HX-Request'):
-        return '', 204, {'HX-Redirect': url_for('campaign_detail', id=campaign.id)}
-    return redirect(url_for('campaign_detail', id=campaign.id))
-
-
-@app.route('/campaigns')
+@app.route('/campaigns', methods=['GET', 'POST'])
 def campaigns():
-    product_filter = request.args.get('product_id', type=int)
+    if request.method == 'GET':
+        return _campaigns_list()
+    return _campaign_create_post()
+
+
+def _campaign_create_post():
+    # Detect which flow: legacy (from Inspo modal) vs new (from /campaigns/create)
+    if request.form.get('video_id'):
+        # LEGACY FLOW: single video + AI brief
+        video_id = request.form.get('video_id', type=int)
+        product_id = request.form.get('product_id', type=int)
+        context_notes = request.form.get('context_notes', '')
+
+        video = Video.query.get_or_404(video_id)
+        product = Product.query.get_or_404(product_id)
+        framework = video.framework
+
+        brief = ai.generate_campaign(video, framework, product, context_notes)
+
+        campaign = Campaign(
+            video_id=video_id,
+            product_id=product_id,
+            context_notes=context_notes,
+            concept=brief.get('concept', ''),
+            hook=brief.get('hook', ''),
+            script_outline=brief.get('script_outline', ''),
+            visual_notes=brief.get('visual_notes', ''),
+            cta=brief.get('cta', ''),
+        )
+        db.session.add(campaign)
+        db.session.commit()
+
+        if request.headers.get('HX-Request'):
+            return '', 204, {'HX-Redirect': url_for('campaign_detail', id=campaign.id)}
+        return redirect(url_for('campaign_detail', id=campaign.id))
+    else:
+        # NEW FLOW: multi-video campaign from /campaigns/create
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        video_urls_raw = request.form.get('video_urls', '')
+        product_id = request.form.get('product_id', type=int)
+
+        # Parse URLs
+        from ingest import extract_video_urls
+        urls = extract_video_urls(video_urls_raw)
+        if not urls:
+            urls = [u.strip() for u in video_urls_raw.split('\n') if u.strip()]
+
+        videos = find_or_create_videos(urls)
+
+        campaign = Campaign(
+            name=name,
+            description=description,
+            product_id=product_id if product_id else None,
+            status='Drafting',
+        )
+        db.session.add(campaign)
+        db.session.flush()
+
+        for video in videos:
+            cv = CampaignVideo(campaign_id=campaign.id, video_id=video.id)
+            db.session.add(cv)
+            # Pre-populate metrics from existing raw_metadata if available
+            if video.raw_metadata:
+                try:
+                    raw = json.loads(video.raw_metadata)
+                    cv.views = raw.get('view_count')
+                    cv.likes = raw.get('like_count')
+                    cv.comments = raw.get('comment_count')
+                    cv.shares = raw.get('repost_count')
+                    cv.saves = raw.get('digg_count')
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+        db.session.commit()
+        return redirect(url_for('campaign_detail', id=campaign.id))
+
+
+@app.route('/campaigns/create')
+def campaign_create_form():
+    products = Product.query.order_by(Product.name).all()
+    return render_template('campaign_create.html', products=products)
+
+
+def _campaigns_list():
     status_filter = request.args.get('status', '').strip()
     query = Campaign.query.order_by(Campaign.created_at.desc())
-    if product_filter:
-        query = query.filter_by(product_id=product_filter)
     if status_filter:
         query = query.filter_by(status=status_filter)
-    campaigns = query.all()
+    all_campaigns = query.all()
+
+    # Aggregate metrics across all campaign_videos
+    all_cvs = CampaignVideo.query.all()
+    total_views = sum(cv.views or 0 for cv in all_cvs)
+    total_likes = sum(cv.likes or 0 for cv in all_cvs)
+    total_comments = sum(cv.comments or 0 for cv in all_cvs)
+    total_saves = sum(cv.saves or 0 for cv in all_cvs)
+
     products = Product.query.order_by(Product.name).all()
-    return render_template('campaigns.html', campaigns=campaigns, products=products,
-                           product_filter=product_filter, status_filter=status_filter,
-                           statuses=CAMPAIGN_STATUSES)
+    return render_template('campaigns.html', campaigns=all_campaigns, products=products,
+                           status_filter=status_filter, statuses=CAMPAIGN_STATUSES,
+                           total_views=total_views, total_likes=total_likes,
+                           total_comments=total_comments, total_saves=total_saves)
 
 
 @app.route('/campaigns/<int:id>')
@@ -481,21 +691,74 @@ def campaign_status(id):
 
 @app.route('/analytics')
 def analytics():
-    product_filter = request.args.get('product_id', type=int)
-    query = Campaign.query.filter(Campaign.posted_at.isnot(None))
-    if product_filter:
-        query = query.filter_by(product_id=product_filter)
-    posted = query.order_by(Campaign.views.desc().nullslast()).all()
-    products = Product.query.order_by(Product.name).all()
+    all_campaigns = Campaign.query.order_by(Campaign.created_at.desc()).all()
 
-    total_views = sum(c.views or 0 for c in posted)
-    total_likes = sum(c.likes or 0 for c in posted)
-    total_comments = sum(c.comments or 0 for c in posted)
-    best = max(posted, key=lambda c: c.views or 0) if posted else None
+    # Aggregate metrics across all campaign_videos
+    all_cvs = CampaignVideo.query.all()
+    total_views = sum(cv.views or 0 for cv in all_cvs)
+    total_likes = sum(cv.likes or 0 for cv in all_cvs)
+    total_comments = sum(cv.comments or 0 for cv in all_cvs)
+    total_saves = sum(cv.saves or 0 for cv in all_cvs)
 
-    return render_template('analytics.html', posted=posted, products=products,
-                           product_filter=product_filter, total_views=total_views,
-                           total_likes=total_likes, total_comments=total_comments, best=best)
+    return render_template('analytics.html', campaigns=all_campaigns,
+                           total_views=total_views, total_likes=total_likes,
+                           total_comments=total_comments, total_saves=total_saves)
+
+
+@app.route('/campaigns/<int:campaign_id>/add-videos', methods=['POST'])
+def campaign_add_videos(campaign_id):
+    campaign = Campaign.query.get_or_404(campaign_id)
+    video_urls_raw = request.form.get('video_urls', '')
+
+    from ingest import extract_video_urls
+    urls = extract_video_urls(video_urls_raw)
+    if not urls:
+        urls = [u.strip() for u in video_urls_raw.split('\n') if u.strip()]
+
+    videos = find_or_create_videos(urls)
+    added = 0
+    for video in videos:
+        exists = CampaignVideo.query.filter_by(campaign_id=campaign.id, video_id=video.id).first()
+        if not exists:
+            cv = CampaignVideo(campaign_id=campaign.id, video_id=video.id)
+            # Pre-populate metrics from existing raw_metadata if available
+            if video.raw_metadata:
+                try:
+                    raw = json.loads(video.raw_metadata)
+                    cv.views = raw.get('view_count')
+                    cv.likes = raw.get('like_count')
+                    cv.comments = raw.get('comment_count')
+                    cv.shares = raw.get('repost_count')
+                    cv.saves = raw.get('digg_count')
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            db.session.add(cv)
+            added += 1
+    db.session.commit()
+
+    if request.headers.get('HX-Request'):
+        return '', 204, {'HX-Redirect': url_for('campaign_detail', id=campaign_id)}
+    return redirect(url_for('campaign_detail', id=campaign_id))
+
+
+@app.route('/campaigns/<int:campaign_id>/videos/<int:video_id>/metrics', methods=['POST'])
+def campaign_video_metrics(campaign_id, video_id):
+    cv = CampaignVideo.query.filter_by(campaign_id=campaign_id, video_id=video_id).first_or_404()
+
+    def intval(key):
+        v = request.form.get(key, '').strip()
+        return int(v) if v.isdigit() else None
+
+    cv.views = intval('views')
+    cv.likes = intval('likes')
+    cv.comments = intval('comments')
+    cv.shares = intval('shares')
+    cv.saves = intval('saves')
+    db.session.commit()
+
+    if request.headers.get('HX-Request'):
+        return '<span class="saved-notice">Metrics saved ✓</span>'
+    return redirect(url_for('campaign_detail', id=campaign_id))
 
 
 @app.route('/campaigns/<int:id>/metrics', methods=['POST'])
@@ -554,38 +817,8 @@ def ingest():
     db.session.add(video)
     db.session.commit()
 
-    # Fetch metadata + classify in background
-    def process(video_id):
-        with app.app_context():
-            from ingest import fetch_metadata, fetch_rich_content, fetch_oembed
-            v = Video.query.get(video_id)
-            meta = fetch_metadata(v.url)
-            duration = None
-            if meta and 'error' not in meta:
-                v.creator = meta.get('creator', '')
-                v.title = meta.get('title', '')
-                v.caption = meta.get('caption', '')
-                v.thumbnail_url = meta.get('thumbnail_url', '')
-                v.raw_metadata = meta.get('raw', '')
-                duration = meta.get('duration')
-                db.session.commit()
-                if v.thumbnail_url:
-                    _cache_thumbnail(v.id, v.thumbnail_url)
-                embed = fetch_oembed(v.url, v.platform)
-                if embed:
-                    v.embed_html = embed
-                    db.session.commit()
-
-            rich = fetch_rich_content(v.url, duration=duration)
-            frames = rich.get('frames', [])
-            transcript = rich.get('transcript', '')
-            if transcript:
-                v.transcript = transcript
-                db.session.commit()
-
-            classify_in_background(video_id, frames=frames, transcript=transcript)
-
-    threading.Thread(target=process, args=(video.id,), daemon=True).start()
+    # Fetch metadata + metrics + classify in background
+    threading.Thread(target=_process_new_video, args=(video.id,), daemon=True).start()
 
     return jsonify({'status': 'created', 'id': video.id})
 
@@ -625,6 +858,7 @@ def _run_backfill_formats():
 with app.app_context():
     migrate_db()
     seed_db()
+    backfill_campaign_videos()
 
 threading.Thread(target=_run_backfill_embeds, daemon=True).start()
 threading.Thread(target=_run_backfill_formats, daemon=True).start()
