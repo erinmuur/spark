@@ -247,11 +247,15 @@ def video_detail(id):
 @app.route('/videos/<int:id>/reanalyze', methods=['POST'])
 def video_reanalyze(id):
     video = Video.query.get_or_404(id)
-    video.analysis = None
-    video.framework_id = None
-    video.video_format = None
+    frameworks = Framework.query.all()
+    framework_id, analysis, video_format = ai.classify_video(video, frameworks)
+    if framework_id:
+        video.framework_id = framework_id
+    if analysis:
+        video.analysis = analysis
+    if video_format:
+        video.video_format = video_format
     db.session.commit()
-    threading.Thread(target=classify_in_background, args=(id,), daemon=True).start()
     return Response('', status=204, headers={'HX-Redirect': f'/videos/{id}'})
 
 
