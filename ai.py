@@ -134,6 +134,57 @@ Respond with JSON only: {{"video_format": "<one of: {', '.join(UGC_FORMATS)}>"}}
         return None
 
 
+def generate_tribe_suggestions(video, scores):
+    """Generate editing suggestions from TRIBE v2 brain activation scores.
+    scores: list of floats, one per second (mean activation across 20,484 cortical vertices)."""
+    n = len(scores)
+    if n == 0:
+        return None
+
+    max_act = max(scores)
+    min_act = min(scores)
+    span = max_act - min_act if max_act != min_act else 1
+    normalized = [(v - min_act) / span * 100 for v in scores]
+
+    peak_t = scores.index(max_act)
+    trough_t = scores.index(min_act)
+
+    timeline_str = '\n'.join(f'  t={i}s: {norm:.0f}/100' for i, norm in enumerate(normalized))
+
+    framework_name = video.framework.name if video.framework else 'Unknown'
+
+    prompt = f"""You are a video editing strategist. You have brain engagement data from TRIBE v2 (Meta's fMRI brain encoding model) for a short-form video. Scores represent predicted cortical activation per second — a proxy for cognitive engagement — normalized 0–100 for this specific video.
+
+VIDEO:
+- Platform: {video.platform}
+- Creator: {video.creator or 'Unknown'}
+- Caption: {video.caption or ''}
+- Framework: {framework_name}
+- Analysis: {video.analysis or ''}
+
+BRAIN ENGAGEMENT TIMELINE (0 = lowest engagement in this video, 100 = highest):
+{timeline_str}
+
+Duration: {n}s | Peak: t={peak_t}s | Lowest: t={trough_t}s
+
+Based on this engagement curve, provide:
+1. The 1–2 highest-engagement moments and why they likely spiked (what probably happens at that second based on the caption/analysis)
+2. The 1–2 lowest-engagement moments and what's likely causing the drop
+3. 2–3 specific editing recommendations (pacing, cuts, text overlays, audio) to lift the low points
+
+Be concise and actionable. Reference specific timestamps (e.g. "at t=4s")."""
+
+    try:
+        message = client.messages.create(
+            model=MODEL,
+            max_tokens=600,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        return message.content[0].text.strip()
+    except Exception as e:
+        return f'Error generating suggestions: {e}'
+
+
 def generate_campaign(video, framework, product, context_notes):
     """Generate a creative brief. Returns a dict with campaign fields."""
     framework_info = ''

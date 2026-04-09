@@ -111,6 +111,9 @@ def migrate_db():
         ('campaign', 'saves', 'INTEGER'),
         ('campaign', 'name', 'TEXT'),
         ('campaign', 'description', 'TEXT'),
+        ('video', 'tribe_scores', 'TEXT'),
+        ('video', 'tribe_suggestions', 'TEXT'),
+        ('video', 'tribe_status', 'TEXT'),
     ]
     with db.engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -406,6 +409,39 @@ def video_reanalyze(id):
         video.video_format = video_format
     db.session.commit()
     return Response('', status=204, headers={'HX-Redirect': f'/videos/{id}'})
+
+
+@app.route('/videos/<int:id>/tribe', methods=['POST'])
+def video_tribe(id):
+    """Kick off in-app TRIBE v2 inference in a background thread."""
+    video = Video.query.get_or_404(id)
+    if video.tribe_status == 'running':
+        return jsonify({'ok': False, 'error': 'Analysis already running'}), 409
+
+    import tribe
+
+    def _run():
+        with app.app_context():
+            tribe.run_inference(id)
+
+    video.tribe_status = 'running'
+    db.session.commit()
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    return jsonify({'ok': True, 'status': 'running'})
+
+
+@app.route('/videos/<int:id>/tribe-status')
+def video_tribe_status(id):
+    """Poll endpoint — returns current tribe_status and scores/suggestions if done."""
+    video = Video.query.get_or_404(id)
+    status = video.tribe_status or 'idle'
+    resp = {'status': status}
+    if status == 'done':
+        resp['scores'] = json.loads(video.tribe_scores) if video.tribe_scores else []
+        resp['suggestions'] = video.tribe_suggestions or ''
+    return jsonify(resp)
 
 
 @app.route('/videos/<int:id>/delete', methods=['POST'])

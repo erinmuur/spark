@@ -1,0 +1,50 @@
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+  <h3 style="margin:0; font-size:1.1rem;">TRIBE v2 Brain Analysis</h3>
+  <button onclick="closeModal()" class="secondary"
+    style="width:auto; padding:0.3rem 0.75rem; font-size:0.8rem; color:#fff; margin:0;">✕</button>
+</div>
+
+<p style="font-size:0.84rem; color:var(--pico-muted-color); margin-bottom:1.25rem; line-height:1.6;">
+  TRIBE v2 is Meta's fMRI brain encoding model. It predicts cortical activation (cognitive engagement)
+  per second of video. Run the snippet below in a <strong style="color:#efefef;">Google Colab GPU</strong>
+  notebook — results will appear automatically on this page when the job completes.
+</p>
+
+{% if video.tribe_scores %}
+<div style="margin-bottom:1.25rem; padding:0.6rem 0.85rem; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); border-radius:6px; font-size:0.82rem; color:#34d399;">
+  ✓ Analysis already run for this video. Re-run to update with latest data.
+</div>
+{% endif %}
+
+<div style="position:relative; margin-bottom:1.25rem;">
+  <pre id="tribe-pre" style="background:#0a0a0a; border:1px solid #2a2a2a; border-radius:8px; padding:1rem; font-size:0.71rem; line-height:1.55; overflow-x:auto; margin:0; max-height:320px; overflow-y:auto;"><code id="tribe-snippet-code">{{ snippet }}</code></pre>
+  <button onclick="copyTribeSnippet()" id="tribe-copy-btn"
+    style="position:absolute; top:8px; right:8px; padding:3px 10px; font-size:0.71rem;
+           background:#2a2a2a; border:1px solid #3a3a3a; border-radius:4px;
+           color:#ccc; cursor:pointer; width:auto; margin:0;">Copy</button>
+</div>
+
+<ol style="font-size:0.82rem; color:var(--pico-muted-color); padding-left:1.4rem; margin:0 0 1.25rem; line-height:1.85;">
+  <li>Open <a href="https://colab.research.google.com" target="_blank" rel="noopener"
+       style="color:var(--spark-orange);">Google Colab</a> → Runtime → Change runtime type → <strong style="color:#efefef;">GPU (T4)</strong></li>
+  <li>Paste snippet → run all cells</li>
+  <li>The last cell POSTs scores to Spark — refresh this page when it completes</li>
+</ol>
+
+<p style="font-size:0.78rem; color:#444; margin:0;">
+  Note: if running Spark locally, replace <code style="font-size:0.76rem; color:#666;">SPARK_HOST</code>
+  with your deployed URL (or use <a href="https://ngrok.com" target="_blank" rel="noopener" style="color:#555;">ngrok</a>
+  to expose localhost).
+</p>
+
+<script>
+function copyTribeSnippet() {
+  const text = document.getElementById('tribe-snippet-code').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('tribe-copy-btn');
+    btn.textContent = 'Copied!';
+    btn.style.color = '#34d399';
+    setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = '#ccc'; }, 2000);
+  });
+}
+</script>

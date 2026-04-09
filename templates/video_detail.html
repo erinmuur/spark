@@ -114,6 +114,29 @@
     </section>
     {% endif %}
 
+    <!-- TRIBE v2 Brain Engagement -->
+    <section id="tribe-section" style="margin-bottom:1.5rem;">
+      <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--pico-muted-color); margin-bottom:0.75rem;">
+        Brain Engagement
+        <span style="font-size:0.7rem; color:#444; text-transform:none; letter-spacing:0; margin-left:0.4rem;">TRIBE v2</span>
+      </h4>
+
+      {% if video.tribe_status == 'running' %}
+      <div id="tribe-running" style="font-size:0.84rem; color:#aaa;">
+        <span class="spinner"></span> Running inference… this takes 5–15 min. You can leave this page.
+      </div>
+      {% elif video.tribe_status and video.tribe_status.startswith('error') %}
+      <div style="font-size:0.82rem; color:#ef4444;">{{ video.tribe_status }}</div>
+      {% elif video.tribe_scores %}
+      <canvas id="tribe-chart" style="width:100%; max-height:110px;"></canvas>
+      {% if video.tribe_suggestions %}
+      <div style="margin-top:1rem; font-size:0.84rem; line-height:1.65; color:#ccc; white-space:pre-wrap;">{{ video.tribe_suggestions }}</div>
+      {% endif %}
+      {% else %}
+      <div style="font-size:0.82rem; color:#555;">No analysis yet. Click "TRIBE Analysis" to run.</div>
+      {% endif %}
+    </section>
+
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
     <button class="secondary"
       hx-get="/campaigns/new?video_id={{ video.id }}"
@@ -128,6 +151,17 @@
       onclick="this.textContent='Analyzing…'; this.disabled=true;"
       style="width:auto;">
       Re-analyze
+    </button>
+    <button id="tribe-btn" class="secondary"
+      onclick="runTribe({{ video.id }}, this)"
+      style="width:auto; color:#fff;">
+      {% if video.tribe_status == 'running' %}
+        <span class="spinner"></span> Running…
+      {% elif video.tribe_scores %}
+        Re-run TRIBE
+      {% else %}
+        TRIBE Analysis
+      {% endif %}
     </button>
     </div>
   </div>
@@ -207,4 +241,102 @@
   word-break: break-word;
 }
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+function renderTribeChart(raw) {
+  const canvas = document.getElementById('tribe-chart');
+  if (!canvas) return;
+  const maxV = Math.max(...raw), minV = Math.min(...raw);
+  const span = maxV - minV || 1;
+  const norm = raw.map(v => ((v - minV) / span * 100).toFixed(1));
+  const labels = raw.map((_, i) => i % 5 === 0 ? i + 's' : '');
+  new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: norm,
+        borderColor: '#f97316',
+        backgroundColor: 'rgba(249,115,22,0.07)',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.35,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: ctx => 't=' + ctx[0].dataIndex + 's',
+            label: ctx => 'Engagement: ' + ctx.parsed.y + '/100'
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#444', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
+        y: { min: 0, max: 100, ticks: { color: '#444', font: { size: 10 }, stepSize: 25 }, grid: { color: 'rgba(255,255,255,0.03)' } }
+      }
+    }
+  });
+}
+
+{% if video.tribe_scores %}
+renderTribeChart({{ video.tribe_scores | safe }});
+{% endif %}
+
+function runTribe(videoId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Starting…';
+  document.getElementById('tribe-section').innerHTML =
+    '<h4 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--pico-muted-color);margin-bottom:0.75rem;">Brain Engagement <span style="font-size:0.7rem;color:#444;text-transform:none;letter-spacing:0;margin-left:0.4rem;">TRIBE v2</span></h4>' +
+    '<div id="tribe-running" style="font-size:0.84rem;color:#aaa;"><span class="spinner"></span> Running inference… this takes 5–15 min. You can leave this page.</div>';
+
+  fetch('/videos/' + videoId + '/tribe', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        btn.innerHTML = '<span class="spinner"></span> Running…';
+        pollTribe(videoId, btn);
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'TRIBE Analysis';
+        alert('Error: ' + (data.error || 'unknown'));
+      }
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'TRIBE Analysis'; });
+}
+
+function pollTribe(videoId, btn) {
+  const interval = setInterval(() => {
+    fetch('/videos/' + videoId + '/tribe-status')
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'done') {
+          clearInterval(interval);
+          // Reload page to show chart + suggestions
+          window.location.reload();
+        } else if (data.status && data.status.startsWith('error')) {
+          clearInterval(interval);
+          btn.disabled = false;
+          btn.textContent = 'TRIBE Analysis';
+          document.getElementById('tribe-section').innerHTML +=
+            '<div style="font-size:0.82rem;color:#ef4444;margin-top:0.5rem;">' + data.status + '</div>';
+        }
+      });
+  }, 15000); // poll every 15s
+}
+
+// Auto-poll if page loaded while inference is already running
+{% if video.tribe_status == 'running' %}
+(function() {
+  const btn = document.getElementById('tribe-btn');
+  pollTribe({{ video.id }}, btn);
+})();
+{% endif %}
+</script>
 {% endblock %}
