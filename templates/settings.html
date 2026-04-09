@@ -15,7 +15,10 @@
   <div class="product-grid">
     {% for product in products %}
     <div class="product-card">
-      <h4 style="margin-top:0;">{{ product.name }}</h4>
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+        <img src="/static/img/{{ product.name | lower }}.png" alt="{{ product.name }}" style="width:40px; height:40px; border-radius:10px; object-fit:cover;" onerror="this.style.display='none'">
+        <h4 style="margin:0;">{{ product.name }}</h4>
+      </div>
       <form hx-post="/products/{{ product.id }}/edit"
             hx-target="#save-notice-{{ product.id }}"
             hx-swap="innerHTML">
