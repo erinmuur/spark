@@ -164,34 +164,33 @@ document.addEventListener('click', function(e) {
 </div>
 
 <style>
-/* Masonry columns layout — 4 columns */
+/* 4-column grid — align-items:start lets cards be their natural height */
 .inspo-grid {
-  display: block !important;
-  columns: 4;
-  column-gap: 1rem;
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  align-items: start;
 }
-@media (max-width: 1100px) { .inspo-grid { columns: 3; } }
-@media (max-width: 720px)  { .inspo-grid { columns: 2; } }
-@media (max-width: 420px)  { .inspo-grid { columns: 1; } }
+@media (max-width: 1100px) { .inspo-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 720px)  { .inspo-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 420px)  { .inspo-grid { grid-template-columns: 1fr; } }
 
 .inspo-card {
-  break-inside: avoid;
-  display: inline-block;
   width: 100%;
-  margin-bottom: 1rem;
   overflow: visible;
   background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
 }
 
-/* Rounded corners that actually clip iframe/img content.
-   overflow:hidden alone won't clip cross-origin iframes in WebKit —
-   the radial-gradient mask forces the browser to apply it. */
+/* Rounded corners that clip all content including cross-origin iframes.
+   background provides a dark base while the embed loads.
+   -webkit-mask forces border-radius to apply in WebKit (overflow:hidden alone won't clip iframes). */
 .inspo-embed-wrapper {
   position: relative;
   border-radius: 12px;
   overflow: hidden;
+  background: #181818;
   -webkit-mask-image: -webkit-radial-gradient(white, black);
   color-scheme: dark;
 }
