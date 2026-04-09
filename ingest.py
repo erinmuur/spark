@@ -100,6 +100,8 @@ def fetch_metadata(url):
                     'duration': info.get('duration'),
                     'view_count': info.get('view_count'),
                     'like_count': info.get('like_count'),
+                    'upload_date': info.get('upload_date'),
+                    'timestamp': info.get('timestamp'),
                     'tags': info.get('tags'),
                     'webpage_url': info.get('webpage_url'),
                 }, default=str)

@@ -156,6 +156,8 @@ CAMPAIGN_STATUSES = ['Drafting', 'Pitching', 'Assigned', 'Complete']
 @app.route('/')
 def inspo():
     q = request.args.get('q', '').strip()
+    sort = request.args.get('sort', 'added_desc')
+
     query = Video.query
     if q:
         like = f'%{q}%'
@@ -166,9 +168,39 @@ def inspo():
                 Video.title.ilike(like),
             )
         )
-    videos = query.order_by(Video.created_at.desc()).all()
+
+    videos = query.all()
+
+    def _likes(v):
+        try:
+            return json.loads(v.raw_metadata or '{}').get('like_count') or 0
+        except Exception:
+            return 0
+
+    def _upload_date(v):
+        try:
+            d = json.loads(v.raw_metadata or '{}').get('upload_date', '')
+            if d:
+                return d  # 'YYYYMMDD' — sorts correctly as string
+        except Exception:
+            pass
+        return v.created_at.strftime('%Y%m%d') if v.created_at else '0'
+
+    if sort == 'engagement_desc':
+        videos.sort(key=_likes, reverse=True)
+    elif sort == 'engagement_asc':
+        videos.sort(key=_likes)
+    elif sort == 'posted_desc':
+        videos.sort(key=_upload_date, reverse=True)
+    elif sort == 'posted_asc':
+        videos.sort(key=_upload_date)
+    elif sort == 'added_asc':
+        videos.sort(key=lambda v: v.created_at or datetime.min)
+    else:  # added_desc (default)
+        videos.sort(key=lambda v: v.created_at or datetime.min, reverse=True)
+
     frameworks = Framework.query.order_by(Framework.name).all()
-    return render_template('inspo.html', videos=videos, frameworks=frameworks, q=q)
+    return render_template('inspo.html', videos=videos, frameworks=frameworks, q=q, sort=sort)
 
 
 # ---------------------------------------------------------------------------

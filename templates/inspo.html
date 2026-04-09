@@ -7,11 +7,103 @@
   <small style="color:var(--pico-muted-color);">{{ videos|length }} video{{ 's' if videos|length != 1 }}</small>
 </div>
 
-<form method="get" action="/" style="margin-bottom:1.5rem; display:flex; gap:0.5rem;">
-  <input type="search" name="q" value="{{ q or '' }}" placeholder="Search by creator, caption…" style="margin:0; flex:1;" />
-  <button type="submit" class="secondary" style="width:auto; margin:0;">Search</button>
-  {% if q %}<a href="/" role="button" class="outline secondary" style="margin:0;">Clear</a>{% endif %}
-</form>
+<div style="display:flex; gap:0.5rem; margin-bottom:1.5rem; align-items:center;">
+  <form method="get" action="/" style="display:flex; gap:0.5rem; flex:1;">
+    {% if sort != 'added_desc' %}<input type="hidden" name="sort" value="{{ sort }}" />{% endif %}
+    <input type="search" name="q" value="{{ q or '' }}" placeholder="Search by creator, caption…" style="margin:0; flex:1;" />
+    <button type="submit" class="secondary" style="width:auto; margin:0;">Search</button>
+    {% if q %}<a href="/?sort={{ sort }}" role="button" class="outline secondary" style="margin:0;">Clear</a>{% endif %}
+  </form>
+
+  <!-- Sort dropdown -->
+  <div class="sort-wrapper" style="position:relative;">
+    <button type="button" class="sort-toggle {% if sort != 'added_desc' %}sort-active{% endif %}"
+            onclick="toggleSort()" title="Sort">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <line x1="2" y1="4" x2="14" y2="4"/>
+        <line x1="4" y1="8" x2="12" y2="8"/>
+        <line x1="6" y1="12" x2="10" y2="12"/>
+      </svg>
+    </button>
+    <div class="sort-menu" id="sort-menu">
+      <div class="sort-group-label">ENGAGEMENT</div>
+      <a href="/?sort=engagement_desc{% if q %}&q={{ q }}{% endif %}" class="sort-option{% if sort == 'engagement_desc' %} active{% endif %}">
+        <span class="sort-check">{% if sort == 'engagement_desc' %}✓{% endif %}</span>Most liked
+      </a>
+      <a href="/?sort=engagement_asc{% if q %}&q={{ q }}{% endif %}" class="sort-option{% if sort == 'engagement_asc' %} active{% endif %}">
+        <span class="sort-check">{% if sort == 'engagement_asc' %}✓{% endif %}</span>Least liked
+      </a>
+      <div class="sort-group-label" style="margin-top:0.5rem;">POSTED</div>
+      <a href="/?sort=posted_desc{% if q %}&q={{ q }}{% endif %}" class="sort-option{% if sort == 'posted_desc' %} active{% endif %}">
+        <span class="sort-check">{% if sort == 'posted_desc' %}✓{% endif %}</span>Newest first
+      </a>
+      <a href="/?sort=posted_asc{% if q %}&q={{ q }}{% endif %}" class="sort-option{% if sort == 'posted_asc' %} active{% endif %}">
+        <span class="sort-check">{% if sort == 'posted_asc' %}✓{% endif %}</span>Oldest first
+      </a>
+      <div class="sort-group-label" style="margin-top:0.5rem;">ADDED</div>
+      <a href="/?sort=added_desc{% if q %}&q={{ q }}{% endif %}" class="sort-option{% if sort == 'added_desc' %} active{% endif %}">
+        <span class="sort-check">{% if sort == 'added_desc' %}✓{% endif %}</span>Newest first
+      </a>
+      <a href="/?sort=added_asc{% if q %}&q={{ q }}{% endif %}" class="sort-option{% if sort == 'added_asc' %} active{% endif %}">
+        <span class="sort-check">{% if sort == 'added_asc' %}✓{% endif %}</span>Oldest first
+      </a>
+    </div>
+  </div>
+</div>
+
+<style>
+.sort-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px;
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: 6px;
+  background: var(--pico-background-color);
+  cursor: pointer;
+  color: var(--pico-muted-color);
+  padding: 0; margin: 0; flex-shrink: 0;
+}
+.sort-toggle:hover { border-color: var(--pico-primary); color: var(--pico-primary); }
+.sort-toggle.sort-active { border-color: var(--pico-primary); color: var(--pico-primary); background: var(--pico-primary-background); }
+.sort-menu {
+  display: none;
+  position: absolute;
+  right: 0; top: calc(100% + 4px);
+  background: var(--pico-background-color);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: 8px;
+  padding: 0.5rem;
+  min-width: 160px;
+  z-index: 50;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.sort-menu.open { display: block; }
+.sort-group-label {
+  font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em;
+  color: var(--pico-muted-color); padding: 0.25rem 0.5rem 0.15rem;
+}
+.sort-option {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: var(--pico-color);
+}
+.sort-option:hover { background: var(--pico-muted-border-color); }
+.sort-option.active { color: var(--pico-primary); font-weight: 500; }
+.sort-check { width: 12px; font-size: 0.75rem; }
+</style>
+
+<script>
+function toggleSort() {
+  document.getElementById('sort-menu').classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.sort-wrapper')) {
+    document.getElementById('sort-menu').classList.remove('open');
+  }
+});
+</script>
 
 {% if not videos %}
 <div style="text-align:center; padding:4rem 0; color:var(--pico-muted-color);">
