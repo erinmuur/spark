@@ -51,6 +51,14 @@ def dark_embed_filter(html):
     return html
 
 
+@app.template_filter('twitter_handle')
+def twitter_handle_filter(url):
+    """Extract @username from a Twitter/X URL."""
+    import re
+    m = re.search(r'(?:twitter|x)\.com/([^/?]+)', url or '')
+    return m.group(1) if m else ''
+
+
 @app.template_filter('fromjson')
 def fromjson_filter(s):
     if not s:

@@ -137,7 +137,7 @@ document.addEventListener('click', function(e) {
           <div class="tweet-card">
             <div class="tweet-header">
               <div class="tweet-avatar">
-                <img src="https://unavatar.io/twitter/{{ video.creator }}"
+                <img src="https://unavatar.io/twitter/{{ video.url | twitter_handle }}"
                      onerror="this.style.display='none';this.parentElement.classList.add('tweet-avatar-fallback')"
                      style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" />
               </div>
