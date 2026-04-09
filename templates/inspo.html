@@ -272,6 +272,37 @@ document.addEventListener('click', function(e) {
 {% endif %}
 
 <script>
+// Force embed iframes to fill column width.
+// CSS !important can't override width attributes set dynamically by TikTok/Twitter
+// embed scripts, so we use MutationObserver to intercept them as they're injected.
+function fixEmbedWidth(iframe) {
+  iframe.removeAttribute('width');
+  iframe.style.setProperty('width', '100%', 'important');
+  iframe.style.setProperty('min-width', '0', 'important');
+  iframe.style.setProperty('max-width', '100%', 'important');
+}
+
+// Fix any iframes already present
+document.querySelectorAll('.inspo-embed iframe').forEach(fixEmbedWidth);
+
+// Watch each embed container for iframes added by embed scripts
+var embedObserver = new MutationObserver(function(mutations) {
+  mutations.forEach(function(m) {
+    m.addedNodes.forEach(function(node) {
+      if (!node || node.nodeType !== 1) return;
+      if (node.tagName === 'IFRAME' && node.closest('.inspo-embed')) {
+        fixEmbedWidth(node);
+      }
+      if (node.querySelectorAll) {
+        node.querySelectorAll('.inspo-embed iframe').forEach(fixEmbedWidth);
+      }
+    });
+  });
+});
+document.querySelectorAll('.inspo-embed').forEach(function(el) {
+  embedObserver.observe(el, { childList: true, subtree: true });
+});
+
 document.addEventListener('mousemove', function(e) {
   document.querySelectorAll('.inspo-embed-wrapper').forEach(function(wrapper) {
     var rect = wrapper.getBoundingClientRect();
