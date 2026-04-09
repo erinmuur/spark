@@ -199,7 +199,8 @@ document.addEventListener('click', function(e) {
 }
 .inspo-embed-wrapper { position: relative; }
 .inspo-embed { width: 100%; }
-.inspo-embed blockquote { margin: 0 !important; }
+.inspo-embed blockquote { margin: 0 !important; max-width: 100% !important; min-width: 0 !important; width: 100% !important; }
+.inspo-embed iframe { width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
 .embed-fallback {
   padding: 2rem;
   text-align: center;

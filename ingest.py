@@ -144,7 +144,7 @@ def fetch_oembed(url, platform):
             video_id = m.group(1)
             return (
                 f'<blockquote class="tiktok-embed" cite="{url}" data-video-id="{video_id}" '
-                f'style="max-width:605px;min-width:325px;"><section></section></blockquote>'
+                f'style="width:100%;max-width:100%;"><section></section></blockquote>'
                 f'<script async src="https://www.tiktok.com/embed.js"></script>'
             )
 
