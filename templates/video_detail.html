@@ -32,7 +32,7 @@
         <p class="tweet-card-detail-text">{{ video.caption or video.title or '' }}</p>
         {% if video.thumbnail_url %}
           <img src="/thumbnails/{{ video.id }}"
-               style="width:100%; border-radius:8px; display:block; object-fit:cover;" />
+               style="width:100%; max-height:300px; border-radius:8px; display:block; object-fit:cover;" />
         {% endif %}
       </div>
       </a>
@@ -134,7 +134,13 @@
 @media (max-width: 768px) {
   .detail-layout { grid-template-columns: 1fr; }
 }
-.detail-embed { min-width: 0; }
+.detail-embed {
+  min-width: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  position: sticky;
+  top: 1rem;
+}
 .detail-info { min-width: 0; }
 .detail-action-btn {
   width: auto; margin: 0;
