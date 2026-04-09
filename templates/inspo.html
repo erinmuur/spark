@@ -126,7 +126,7 @@ document.addEventListener('click', function(e) {
     <div class="inspo-embed-wrapper">
       <div class="inspo-embed">
         {% if video.embed_html %}
-          {{ video.embed_html | safe }}
+          {{ video.embed_html | dark_embed | safe }}
         {% elif video.platform == 'instagram' %}
           <blockquote class="instagram-media"
             data-instgrm-permalink="{{ video.url }}"
@@ -160,42 +160,22 @@ document.addEventListener('click', function(e) {
     </div>
 
     <!-- Card info -->
-    <div class="card-body">
-      <a href="/videos/{{ video.id }}" class="card-detail-link">
-        <div class="card-meta">
-          <span class="badge badge-{{ video.platform or 'unknown' }}">{{ (video.platform or '?') | upper }}</span>
-          {% if video.framework %}
-            <span class="framework-tag">{{ video.framework.name }}</span>
-          {% else %}
-            <span class="framework-tag" style="opacity:0.5;">Classifying…</span>
-          {% endif %}
-          {% if raw.view_count %}
-            <span style="font-size:0.7rem; color:var(--pico-muted-color); margin-left:auto;">
-              👁 {{ raw.view_count | humannum }}
-              {% if raw.like_count %}&nbsp; ♥ {{ raw.like_count | humannum }}{% endif %}
-            </span>
-          {% endif %}
-        </div>
-        {% if video.analysis %}
-          <div class="caption">{{ video.analysis }}</div>
-        {% elif video.caption %}
-          <div class="caption">{{ video.caption }}</div>
+    <a href="/videos/{{ video.id }}" class="card-body card-detail-link">
+      <div class="card-meta">
+        <span class="badge badge-{{ video.platform or 'unknown' }}">{{ (video.platform or '?') | upper }}</span>
+        {% if video.framework %}
+          <span class="framework-tag">{{ video.framework.name }}</span>
+        {% else %}
+          <span class="framework-tag" style="opacity:0.5;">Classifying…</span>
         {% endif %}
-      </a>
-
-      <div class="card-footer" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-        <button class="secondary outline" style="flex:1; margin:0;"
-          hx-get="/campaigns/new?video_id={{ video.id }}"
-          hx-target="#modal-content"
-          hx-swap="innerHTML">
-          Create Campaign
-        </button>
-        <a href="{{ video.url }}" target="_blank" rel="noopener" role="button"
-           class="outline" style="width:auto; margin:0; padding:0.4rem 0.75rem; font-size:0.85rem; white-space:nowrap;">
-          ↗
-        </a>
+        {% if raw.view_count %}
+          <span style="font-size:0.7rem; color:var(--pico-muted-color); margin-left:auto;">
+            👁 {{ raw.view_count | humannum }}
+            {% if raw.like_count %}&nbsp; ♥ {{ raw.like_count | humannum }}{% endif %}
+          </span>
+        {% endif %}
       </div>
-    </div>
+    </a>
   </div>
   {% endfor %}
 </div>

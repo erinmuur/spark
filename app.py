@@ -33,6 +33,18 @@ with app.app_context():
     db.create_all()
 
 
+@app.template_filter('dark_embed')
+def dark_embed_filter(html):
+    """Inject dark-theme attributes into platform embeds."""
+    if not html:
+        return html
+    if 'twitter-tweet' in html:
+        html = html.replace('class="twitter-tweet"', 'class="twitter-tweet" data-theme="dark"')
+    if 'tiktok-embed' in html:
+        html = html.replace('class="tiktok-embed"', 'class="tiktok-embed" data-background-color="#181818"')
+    return html
+
+
 @app.template_filter('fromjson')
 def fromjson_filter(s):
     if not s:

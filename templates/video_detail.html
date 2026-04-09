@@ -11,7 +11,7 @@
   <!-- Left: embed -->
   <div class="detail-embed">
     {% if video.embed_html %}
-      {{ video.embed_html | safe }}
+      {{ video.embed_html | dark_embed | safe }}
     {% elif video.platform == 'instagram' %}
       <blockquote class="instagram-media"
         data-instgrm-permalink="{{ video.url }}"
