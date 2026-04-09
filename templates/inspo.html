@@ -206,11 +206,12 @@ document.addEventListener('click', function(e) {
   border-radius: 0 !important;
 }
 
-/* Base wrapper — match Ramp4's exact three properties, nothing more */
+/* Base wrapper — uniform size for all cards */
 .inspo-embed-wrapper {
   position: relative;
   border-radius: 12px;
   overflow: hidden;
+  aspect-ratio: 9 / 16;
   -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 /* Thumbnail wrapper (TikTok / Instagram) */
@@ -229,7 +230,7 @@ document.addEventListener('click', function(e) {
   pointer-events: none;
   z-index: 10002;
 }
-.inspo-embed { width: 100%; display: block; }
+.inspo-embed { width: 100%; height: 100%; display: block; }
 .inspo-embed blockquote { margin: 0 !important; max-width: 100% !important; min-width: 0 !important; width: 100% !important; }
 .inspo-embed iframe { width: 100% !important; max-width: 100% !important; min-width: 0 !important; color-scheme: dark; }
 .embed-fallback {
@@ -237,6 +238,10 @@ document.addEventListener('click', function(e) {
   text-align: center;
   background: #111;
   border-radius: 8px 8px 0 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Hover overlay — activated via JS (CSS :hover doesn't cross iframe boundaries) */
@@ -245,9 +250,9 @@ document.addEventListener('click', function(e) {
   inset: 0;
   background: transparent;
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: center;
-  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
   transition: background 0.2s;
   z-index: 9999;
   cursor: pointer;
@@ -300,10 +305,11 @@ document.addEventListener('click', function(e) {
 .tweet-card {
   background: #15202b;
   padding: 14px;
-  min-height: 120px;
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow: hidden;
 }
 .tweet-header {
   display: flex;
@@ -357,6 +363,16 @@ document.addEventListener('click', function(e) {
   color: #e7e9ea;
   margin: 0;
   word-break: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+}
+.tweet-card img {
+  flex: 1;
+  min-height: 0;
+  object-fit: cover;
+  border-radius: 8px;
 }
 </style>
 
