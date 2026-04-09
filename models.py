@@ -26,6 +26,7 @@ class Video(db.Model):
     framework_id = db.Column(db.Integer, db.ForeignKey('framework.id'))
     analysis = db.Column(db.Text)          # Claude's framework analysis
     transcript = db.Column(db.Text)        # Whisper speech-to-text
+    embed_html = db.Column(db.Text)        # oEmbed HTML from platform
     raw_metadata = db.Column(db.Text)      # JSON from yt-dlp
     slack_user = db.Column(db.String(100))
     slack_channel = db.Column(db.String(100))

@@ -32,25 +32,8 @@
 
     <!-- Platform embed -->
     <div class="inspo-embed">
-      {% if video.platform == 'twitter' %}
-        <blockquote class="twitter-tweet" data-dnt="true" data-theme="light" data-conversation="none">
-          <a href="{{ video.url }}">View Tweet</a>
-        </blockquote>
-
-      {% elif video.platform == 'tiktok' %}
-        {% set tk_url = raw.webpage_url or video.url %}
-        {% set tk_id = tk_url.split('/video/')[1].split('?')[0] if '/video/' in tk_url else '' %}
-        {% if tk_id %}
-          <blockquote class="tiktok-embed" cite="{{ tk_url }}" data-video-id="{{ tk_id }}"
-            style="max-width:100%; min-width:100%; border:none; padding:0;">
-            <section><a href="{{ tk_url }}" target="_blank">View on TikTok</a></section>
-          </blockquote>
-        {% else %}
-          <div class="embed-fallback">
-            <a href="{{ video.url }}" target="_blank" rel="noopener">🎵 View on TikTok ↗</a>
-          </div>
-        {% endif %}
-
+      {% if video.embed_html %}
+        {{ video.embed_html | safe }}
       {% elif video.platform == 'instagram' %}
         <blockquote class="instagram-media"
           data-instgrm-permalink="{{ video.url }}"
@@ -58,10 +41,9 @@
           data-instgrm-captioned
           style="width:100%; border:none; margin:0;">
         </blockquote>
-
       {% else %}
         <div class="embed-fallback">
-          <a href="{{ video.url }}" target="_blank" rel="noopener">View Video ↗</a>
+          <a href="{{ video.url }}" target="_blank" rel="noopener">View on {{ video.platform | title }} ↗</a>
         </div>
       {% endif %}
     </div>
@@ -119,15 +101,7 @@
 }
 </style>
 
-<!-- Load embed scripts only for platforms present on this page -->
-{% set platforms = videos | map(attribute='platform') | list %}
-{% if 'twitter' in platforms %}
-<script async src="https://platform.twitter.com/widgets.js"></script>
-{% endif %}
-{% if 'tiktok' in platforms %}
-<script async src="https://www.tiktok.com/embed.js"></script>
-{% endif %}
-{% if 'instagram' in platforms %}
+{% if 'instagram' in videos | map(attribute='platform') | list %}
 <script async src="https://www.instagram.com/embed.js"></script>
 {% endif %}
 

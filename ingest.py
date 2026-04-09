@@ -108,6 +108,25 @@ def fetch_metadata(url):
         return {'error': str(e)}
 
 
+def fetch_oembed(url, platform):
+    """Fetch oEmbed HTML from the platform. Returns HTML string or None."""
+    import requests
+    if platform == 'twitter':
+        # Normalize to twitter.com — X's oEmbed endpoint requires it
+        oembed_url = 'https://publish.twitter.com/oembed?url=' + url.replace('x.com', 'twitter.com') + '&dnt=true'
+    elif platform == 'tiktok':
+        oembed_url = 'https://www.tiktok.com/oembed?url=' + url
+    else:
+        return None
+    try:
+        r = requests.get(oembed_url, timeout=10, headers={'User-Agent': 'Mozilla/5.0 (compatible)'})
+        if r.status_code == 200:
+            return r.json().get('html', '')
+    except Exception:
+        pass
+    return None
+
+
 def fetch_rich_content(url, duration=None):
     """Download video, extract frames and transcribe audio.
     Returns dict with 'frames' (list of base64 JPEGs) and 'transcript' (str).

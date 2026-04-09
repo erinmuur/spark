@@ -73,6 +73,7 @@ def migrate_db():
     """Add new columns to existing tables without dropping data."""
     new_columns = [
         ('video', 'transcript', 'TEXT'),
+        ('video', 'embed_html', 'TEXT'),
         ('campaign', 'posted_url', 'TEXT'),
         ('campaign', 'posted_at', 'DATETIME'),
         ('campaign', 'views', 'INTEGER'),
@@ -460,7 +461,7 @@ def ingest():
     # Fetch metadata + classify in background
     def process(video_id):
         with app.app_context():
-            from ingest import fetch_metadata, fetch_rich_content
+            from ingest import fetch_metadata, fetch_rich_content, fetch_oembed
             v = Video.query.get(video_id)
             meta = fetch_metadata(v.url)
             duration = None
@@ -474,6 +475,10 @@ def ingest():
                 db.session.commit()
                 if v.thumbnail_url:
                     _cache_thumbnail(v.id, v.thumbnail_url)
+                embed = fetch_oembed(v.url, v.platform)
+                if embed:
+                    v.embed_html = embed
+                    db.session.commit()
 
             rich = fetch_rich_content(v.url, duration=duration)
             frames = rich.get('frames', [])
@@ -489,9 +494,31 @@ def ingest():
     return jsonify({'status': 'created', 'id': video.id})
 
 
+def backfill_embeds():
+    """Fetch oEmbed HTML for any existing videos that don't have it yet."""
+    from ingest import fetch_oembed
+    videos = Video.query.filter(
+        Video.embed_html.is_(None),
+        Video.platform.in_(['twitter', 'tiktok'])
+    ).all()
+    for v in videos:
+        embed = fetch_oembed(v.url, v.platform)
+        if embed:
+            v.embed_html = embed
+    if videos:
+        db.session.commit()
+
+
+def _run_backfill_embeds():
+    with app.app_context():
+        backfill_embeds()
+
+
 with app.app_context():
     migrate_db()
     seed_db()
+
+threading.Thread(target=_run_backfill_embeds, daemon=True).start()
 
 if __name__ == '__main__':
     app.run(port=5003, debug=True)
