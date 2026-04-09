@@ -213,7 +213,7 @@ document.addEventListener('click', function(e) {
   border-radius: 8px 8px 0 0;
 }
 
-/* Hover overlay — z-index must exceed Twitter's injected iframe */
+/* Hover overlay — activated via JS (CSS :hover doesn't cross iframe boundaries) */
 .embed-overlay {
   position: absolute;
   inset: 0;
@@ -226,7 +226,7 @@ document.addEventListener('click', function(e) {
   border-radius: 8px 8px 0 0;
   cursor: pointer;
 }
-.embed-overlay:hover {
+.embed-overlay.active {
   background: rgba(0, 0, 0, 0.45);
 }
 .embed-actions {
@@ -236,7 +236,7 @@ document.addEventListener('click', function(e) {
   transition: opacity 0.2s;
   pointer-events: none;
 }
-.embed-overlay:hover .embed-actions {
+.embed-overlay.active .embed-actions {
   opacity: 1;
   pointer-events: auto;
 }
@@ -274,6 +274,19 @@ document.addEventListener('click', function(e) {
 {% if 'instagram' in videos | map(attribute='platform') | list %}
 <script async src="https://www.instagram.com/embed.js"></script>
 {% endif %}
+
+<script>
+// CSS :hover doesn't fire when mouse is over an iframe (Twitter/TikTok embeds).
+// Use document mousemove + getBoundingClientRect to detect position instead.
+document.addEventListener('mousemove', function(e) {
+  document.querySelectorAll('.inspo-embed-wrapper').forEach(function(wrapper) {
+    var rect = wrapper.getBoundingClientRect();
+    var inside = e.clientX >= rect.left && e.clientX <= rect.right &&
+                 e.clientY >= rect.top  && e.clientY <= rect.bottom;
+    wrapper.querySelector('.embed-overlay').classList.toggle('active', inside);
+  });
+});
+</script>
 
 {% endif %}
 {% endblock %}
