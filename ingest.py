@@ -116,16 +116,38 @@ def fetch_oembed(url, platform):
     if platform == 'twitter':
         # Normalize to twitter.com — X's oEmbed endpoint requires it
         oembed_url = 'https://publish.twitter.com/oembed?url=' + url.replace('x.com', 'twitter.com') + '&dnt=true'
-    elif platform == 'tiktok':
-        oembed_url = 'https://www.tiktok.com/oembed?url=' + url
-    else:
+        try:
+            r = requests.get(oembed_url, timeout=10, headers={'User-Agent': 'Mozilla/5.0 (compatible)'})
+            if r.status_code == 200:
+                return r.json().get('html', '')
+        except Exception:
+            pass
         return None
-    try:
-        r = requests.get(oembed_url, timeout=10, headers={'User-Agent': 'Mozilla/5.0 (compatible)'})
-        if r.status_code == 200:
-            return r.json().get('html', '')
-    except Exception:
-        pass
+
+    elif platform == 'tiktok':
+        # Try oEmbed API first
+        try:
+            r = requests.get(
+                'https://www.tiktok.com/oembed?url=' + url,
+                timeout=10,
+                headers={'User-Agent': 'Mozilla/5.0 (compatible)'}
+            )
+            if r.status_code == 200:
+                html = r.json().get('html', '')
+                if html:
+                    return html
+        except Exception:
+            pass
+        # Fallback: build blockquote embed directly from video ID in URL
+        m = re.search(r'/video/(\d+)', url)
+        if m:
+            video_id = m.group(1)
+            return (
+                f'<blockquote class="tiktok-embed" cite="{url}" data-video-id="{video_id}" '
+                f'style="max-width:605px;min-width:325px;"><section></section></blockquote>'
+                f'<script async src="https://www.tiktok.com/embed.js"></script>'
+            )
+
     return None
 
 
