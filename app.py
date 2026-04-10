@@ -476,6 +476,26 @@ def admin_video_debug():
     return jsonify(out)
 
 
+@app.route('/admin/apify-debug')
+def admin_apify_debug():
+    """Temp: run Apify scraper on first video and return full raw item."""
+    v = Video.query.first()
+    if not v:
+        return jsonify({'error': 'no videos'})
+    api_token = os.environ.get('APIFY_API_TOKEN')
+    if not api_token:
+        return jsonify({'error': 'no APIFY_API_TOKEN'})
+    try:
+        from apify_client import ApifyClient
+        client = ApifyClient(api_token)
+        run = client.actor('clockworks/tiktok-scraper').call(run_input={'postURLs': [v.url], 'resultsPerPage': 1}, timeout_secs=60)
+        items = list(client.dataset(run['defaultDatasetId']).iterate_items())
+        item = items[0] if items else {}
+        return jsonify({'status': run.get('status'), 'item_keys': list(item.keys()), 'engagement': {k: item.get(k) for k in ['diggCount', 'commentCount', 'shareCount', 'playCount', 'collectCount', 'savedCount', 'bookmarkCount', 'favoriteCount']}})
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
 @app.route('/admin/delete-all-videos', methods=['POST'])
 def admin_delete_all_videos():
     """One-shot: delete all videos and their thumbnails."""
