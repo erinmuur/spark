@@ -35,6 +35,9 @@ class Video(db.Model):
 
     favorited = db.Column(db.Boolean, default=False)
     video_format = db.Column(db.String(50))  # POV, Talking Head, etc.
+    tribe_scores = db.Column(db.Text)        # JSON list of per-second mean brain activations (TRIBE v2)
+    tribe_suggestions = db.Column(db.Text)   # Claude's editing suggestions from TRIBE analysis
+    tribe_status = db.Column(db.String(50))  # idle / running / done / error:...
 
     campaigns = db.relationship('Campaign', backref='video', lazy=True, cascade='all, delete-orphan')
 
@@ -65,7 +68,7 @@ class CampaignVideo(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     campaign = db.relationship('Campaign', backref=db.backref('campaign_videos', lazy=True, cascade='all, delete-orphan'))
-    video = db.relationship('Video', backref=db.backref('campaign_video_links', lazy=True))
+    video = db.relationship('Video', backref=db.backref('campaign_video_links', lazy=True, cascade='all, delete-orphan'))
 
     __table_args__ = (db.UniqueConstraint('campaign_id', 'video_id', name='uq_campaign_video'),)
 

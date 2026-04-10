@@ -111,6 +111,9 @@ def migrate_db():
         ('campaign', 'saves', 'INTEGER'),
         ('campaign', 'name', 'TEXT'),
         ('campaign', 'description', 'TEXT'),
+        ('video', 'tribe_scores', 'TEXT'),
+        ('video', 'tribe_suggestions', 'TEXT'),
+        ('video', 'tribe_status', 'TEXT'),
     ]
     with db.engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -287,6 +290,7 @@ def find_or_create_videos(urls):
     """Given a list of URLs, find existing Video records or create new ones."""
     from ingest import detect_platform, _clean_url
     videos = []
+    new_video_ids = []
     for url in urls:
         url = _clean_url(url.strip())
         if not url:
@@ -299,8 +303,11 @@ def find_or_create_videos(urls):
             db.session.add(video)
             db.session.flush()
             videos.append(video)
-            threading.Thread(target=_process_new_video, args=(video.id,), daemon=True).start()
+            new_video_ids.append(video.id)
     db.session.commit()
+    # Stagger thread launches to avoid simultaneous DB writes (StaleDataError)
+    for i, video_id in enumerate(new_video_ids):
+        threading.Timer(i * 4, lambda vid=video_id: _process_new_video(vid)).start()
     return videos
 
 
@@ -393,6 +400,54 @@ def video_detail(id):
     return render_template('video_detail.html', video=video, statuses=CAMPAIGN_STATUSES)
 
 
+@app.route('/videos/<int:id>/reanalyze', methods=['POST'])
+def video_reanalyze(id):
+    video = Video.query.get_or_404(id)
+    frameworks = Framework.query.all()
+    framework_id, analysis, video_format = ai.classify_video(video, frameworks)
+    if framework_id:
+        video.framework_id = framework_id
+    if analysis:
+        video.analysis = analysis
+    if video_format:
+        video.video_format = video_format
+    db.session.commit()
+    return Response('', status=204, headers={'HX-Redirect': f'/videos/{id}'})
+
+
+@app.route('/videos/<int:id>/tribe', methods=['POST'])
+def video_tribe(id):
+    """Kick off in-app TRIBE v2 inference in a background thread."""
+    video = Video.query.get_or_404(id)
+    if video.tribe_status == 'running':
+        return jsonify({'ok': False, 'error': 'Analysis already running'}), 409
+
+    import tribe
+
+    def _run():
+        with app.app_context():
+            tribe.run_inference(id)
+
+    video.tribe_status = 'running'
+    db.session.commit()
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    return jsonify({'ok': True, 'status': 'running'})
+
+
+@app.route('/videos/<int:id>/tribe-status')
+def video_tribe_status(id):
+    """Poll endpoint — returns current tribe_status and scores/suggestions if done."""
+    video = Video.query.get_or_404(id)
+    status = video.tribe_status or 'idle'
+    resp = {'status': status}
+    if status == 'done':
+        resp['scores'] = json.loads(video.tribe_scores) if video.tribe_scores else []
+        resp['suggestions'] = video.tribe_suggestions or ''
+    return jsonify(resp)
+
+
 @app.route('/videos/<int:id>/delete', methods=['POST'])
 def video_delete(id):
     video = Video.query.get_or_404(id)
@@ -403,6 +458,88 @@ def video_delete(id):
     db.session.delete(video)
     db.session.commit()
     return redirect(url_for('inspo'))
+
+
+@app.route('/admin/video-debug')
+def admin_video_debug():
+    """Temp: show raw_metadata for all videos."""
+    videos = Video.query.all()
+    out = []
+    for v in videos:
+        raw = {}
+        if v.raw_metadata:
+            try:
+                raw = json.loads(v.raw_metadata)
+            except Exception:
+                raw = {'parse_error': True}
+        out.append({'id': v.id, 'url': v.url, 'creator': v.creator, 'raw_keys': list(raw.keys()), 'saves_fields': {k: raw.get(k) for k in ['digg_count', 'save_count', 'collectCount', 'savedCount']}})
+    return jsonify(out)
+
+
+@app.route('/admin/retry-failed-videos', methods=['POST'])
+def admin_retry_failed_videos():
+    """Re-trigger metadata fetch for videos that failed (no raw_metadata)."""
+    failed = Video.query.filter(Video.raw_metadata.is_(None)).all()
+    count = len(failed)
+    for i, v in enumerate(failed):
+        threading.Timer(i * 4, lambda vid=v.id: _process_new_video(vid)).start()
+    return jsonify({'retrying': count, 'ids': [v.id for v in failed]})
+
+
+@app.route('/admin/apify-debug')
+def admin_apify_debug():
+    """Temp: run Apify scraper on first video and return full raw item."""
+    v = Video.query.first()
+    if not v:
+        return jsonify({'error': 'no videos'})
+    api_token = os.environ.get('APIFY_API_TOKEN')
+    if not api_token:
+        return jsonify({'error': 'no APIFY_API_TOKEN'})
+    try:
+        from apify_client import ApifyClient
+        client = ApifyClient(api_token)
+        if v.platform == 'instagram':
+            run = client.actor('apify/instagram-scraper').call(run_input={'directUrls': [v.url], 'resultsLimit': 1, 'resultsType': 'posts'}, timeout_secs=60)
+            share_keys = ['sharesCount', 'reshareCount', 'repostsCount', 'videoSharesCount']
+        else:
+            run = client.actor('clockworks/tiktok-scraper').call(run_input={'postURLs': [v.url], 'resultsPerPage': 1}, timeout_secs=60)
+            share_keys = ['shareCount', 'collectCount']
+        items = list(client.dataset(run['defaultDatasetId']).iterate_items())
+        item = items[0] if items else {}
+        return jsonify({'platform': v.platform, 'status': run.get('status'), 'item_keys': list(item.keys()), 'share_fields': {k: item.get(k) for k in share_keys}})
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@app.route('/admin/delete-all-videos', methods=['POST'])
+def admin_delete_all_videos():
+    """One-shot: delete all videos and their thumbnails."""
+    videos = Video.query.all()
+    count = len(videos)
+    for v in videos:
+        thumb_path = os.path.join(_data_dir, 'thumbnails', f'{v.id}.jpg')
+        if os.path.exists(thumb_path):
+            os.remove(thumb_path)
+        db.session.delete(v)
+    db.session.commit()
+    return jsonify({'deleted': count})
+
+
+@app.route('/admin/delete-blank-videos', methods=['POST'])
+def admin_delete_blank_videos():
+    """One-shot: delete videos with no thumbnail and no creator (failed ingests)."""
+    blanks = Video.query.filter(
+        Video.thumbnail_url.is_(None),
+        Video.creator.is_(None),
+    ).all()
+    count = len(blanks)
+    for v in blanks:
+        thumb_path = os.path.join(_data_dir, 'thumbnails', f'{v.id}.jpg')
+        if os.path.exists(thumb_path):
+            os.remove(thumb_path)
+        db.session.delete(v)
+    db.session.commit()
+    return jsonify({'deleted': count})
 
 
 @app.route('/videos/<int:id>/favorite', methods=['POST'])

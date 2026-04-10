@@ -90,6 +90,9 @@ def _fetch_tiktok_via_apify(url):
         if not items:
             return None
         item = items[0]
+        import logging as _logging
+        _logging.getLogger(__name__).info(f'Apify TikTok item keys: {list(item.keys())}')
+        _logging.getLogger(__name__).info(f'Apify TikTok saves fields: collectCount={item.get("collectCount")!r} savedCount={item.get("savedCount")!r} favoriteCount={item.get("favoriteCount")!r} bookmarkCount={item.get("bookmarkCount")!r}')
         author_meta = item.get('authorMeta', {}) if isinstance(item.get('authorMeta'), dict) else {}
         return {
             'title': (item.get('text') or '')[:120],
@@ -166,11 +169,19 @@ def fetch_metadata(url):
             last_err = str(e)
             continue
     else:
-        # All attempts failed — try Instagram fallback or return error
+        # All attempts failed — try platform-specific fallbacks
         if 'instagram.com' in url:
             fallback = _scrape_instagram_meta(url)
             if fallback:
                 return fallback
+        if is_tiktok:
+            # Try Apify first (has full stats), then oEmbed (thumbnail only)
+            apify_fallback = _fetch_tiktok_via_apify(url)
+            if apify_fallback:
+                return apify_fallback
+            oembed_fallback = _fetch_tiktok_oembed(url)
+            if oembed_fallback:
+                return oembed_fallback
         return {'error': last_err or 'fetch failed'}
 
     if info is None:
@@ -267,7 +278,7 @@ def _fetch_instagram_via_apify(url):
             'view_count': item.get('videoViewCount') or item.get('videoPlayCount'),
             'like_count': item.get('likesCount'),
             'comment_count': item.get('commentsCount'),
-            'share_count': None,
+            'share_count': item.get('sharesCount') or item.get('reshareCount') or item.get('repostsCount'),
             'save_count': None,
             'embed_html': embed_html,
             'raw': json.dumps({
@@ -282,6 +293,48 @@ def _fetch_instagram_via_apify(url):
                 'shortCode': shortcode,
                 'source': 'apify',
             }, default=str),
+        }
+    except Exception:
+        return None
+
+
+def _fetch_tiktok_oembed(url):
+    """Fallback for TikTok when yt-dlp is IP-blocked (e.g. on cloud servers).
+    Uses TikTok's oEmbed API which is not IP-restricted."""
+    import requests
+    try:
+        r = requests.get(
+            'https://www.tiktok.com/oembed?url=' + url,
+            timeout=10,
+            headers={'User-Agent': 'Mozilla/5.0 (compatible)'}
+        )
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        thumbnail = data.get('thumbnail_url', '')
+        creator = data.get('author_name', '')
+        title = data.get('title', '')
+        m = re.search(r'/video/(\d+)', url)
+        video_id = m.group(1) if m else ''
+        embed_html = (
+            f'<blockquote class="tiktok-embed" cite="{url}" data-video-id="{video_id}" '
+            f'style="width:100%;max-width:100%;"><section></section></blockquote>'
+            f'<script async src="https://www.tiktok.com/embed.js"></script>'
+        ) if video_id else ''
+        return {
+            'title': title,
+            'creator': creator,
+            'caption': title,
+            'thumbnail_url': thumbnail,
+            'duration': 0,
+            'platform': 'tiktok',
+            'view_count': None,
+            'like_count': None,
+            'comment_count': None,
+            'share_count': None,
+            'save_count': None,
+            'embed_html': embed_html,
+            'raw': json.dumps({'title': title, 'author_name': creator, 'type': 'oembed_fallback'}),
         }
     except Exception:
         return None

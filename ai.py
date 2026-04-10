@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import anthropic
 
 client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
@@ -60,10 +61,15 @@ VIDEO:
 
     text_prompt += f"""
 
+IMPORTANT INSTRUCTIONS FOR ANALYSIS:
+- Describe what SPECIFICALLY happens in this video — the actual opening moment, the specific words or phrases used, the visual action taken. Do NOT describe what the framework means in general.
+- If the available information is limited (no transcript, no frames), say what you can infer from the caption/title and flag your confidence.
+- For UGC format: classify based on the actual content signals, not assumptions from the creator name or platform.
+
 Respond with JSON only, no markdown fences:
 {{
   "framework_id": <integer ID from the list above>,
-  "analysis": "<2-3 sentences explaining why this framework applies and what makes this video effective>",
+  "analysis": "<2-3 sentences describing what specifically happens in THIS video and why it works — reference actual moments, words, or visuals from the content, not generic descriptions of the framework>",
   "video_format": "<one of: {', '.join(UGC_FORMATS)}>"
 }}"""
 
@@ -81,10 +87,14 @@ Respond with JSON only, no markdown fences:
     try:
         message = client.messages.create(
             model=MODEL,
-            max_tokens=600,
+            max_tokens=1024,
             messages=[{'role': 'user', 'content': content}]
         )
         raw = message.content[0].text.strip()
+        # Strip markdown fences if Claude adds them despite instructions
+        if raw.startswith('```'):
+            raw = re.sub(r'^```[a-z]*\n?', '', raw)
+            raw = re.sub(r'\n?```$', '', raw)
         data = json.loads(raw)
         fmt = data.get('video_format')
         if fmt not in UGC_FORMATS:
@@ -122,6 +132,57 @@ Respond with JSON only: {{"video_format": "<one of: {', '.join(UGC_FORMATS)}>"}}
         return fmt if fmt in UGC_FORMATS else None
     except Exception:
         return None
+
+
+def generate_tribe_suggestions(video, scores):
+    """Generate editing suggestions from TRIBE v2 brain activation scores.
+    scores: list of floats, one per second (mean activation across 20,484 cortical vertices)."""
+    n = len(scores)
+    if n == 0:
+        return None
+
+    max_act = max(scores)
+    min_act = min(scores)
+    span = max_act - min_act if max_act != min_act else 1
+    normalized = [(v - min_act) / span * 100 for v in scores]
+
+    peak_t = scores.index(max_act)
+    trough_t = scores.index(min_act)
+
+    timeline_str = '\n'.join(f'  t={i}s: {norm:.0f}/100' for i, norm in enumerate(normalized))
+
+    framework_name = video.framework.name if video.framework else 'Unknown'
+
+    prompt = f"""You are a video editing strategist. You have brain engagement data from TRIBE v2 (Meta's fMRI brain encoding model) for a short-form video. Scores represent predicted cortical activation per second — a proxy for cognitive engagement — normalized 0–100 for this specific video.
+
+VIDEO:
+- Platform: {video.platform}
+- Creator: {video.creator or 'Unknown'}
+- Caption: {video.caption or ''}
+- Framework: {framework_name}
+- Analysis: {video.analysis or ''}
+
+BRAIN ENGAGEMENT TIMELINE (0 = lowest engagement in this video, 100 = highest):
+{timeline_str}
+
+Duration: {n}s | Peak: t={peak_t}s | Lowest: t={trough_t}s
+
+Based on this engagement curve, provide:
+1. The 1–2 highest-engagement moments and why they likely spiked (what probably happens at that second based on the caption/analysis)
+2. The 1–2 lowest-engagement moments and what's likely causing the drop
+3. 2–3 specific editing recommendations (pacing, cuts, text overlays, audio) to lift the low points
+
+Be concise and actionable. Reference specific timestamps (e.g. "at t=4s")."""
+
+    try:
+        message = client.messages.create(
+            model=MODEL,
+            max_tokens=600,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        return message.content[0].text.strip()
+    except Exception as e:
+        return f'Error generating suggestions: {e}'
 
 
 def generate_campaign(video, framework, product, context_notes):
