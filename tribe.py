@@ -1,61 +1,22 @@
-"""TRIBE v2 in-app inference module.
+"""TRIBE v2 inference module for Spark.
 
-Called from a background thread by app.py. Downloads the video via yt-dlp,
-runs TribeModel inference on CPU (MPS on macOS 14+), saves per-second mean
-brain activation scores to the Video row, then calls Claude for suggestions.
+Delegates GPU inference to Modal (tribe_modal.py). The run_inference()
+function is called from a background thread by app.py and handles all
+DB writes; the actual compute runs remotely on a Modal T4 GPU.
 """
 import json
 import os
-import tempfile
-import subprocess
-import glob
 import logging
 
 logger = logging.getLogger(__name__)
 
-_model = None  # loaded lazily and cached for the process lifetime
-_MODEL_ID = 'facebook/tribev2'
-_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'tribe_cache')
-
-
-def _load_model():
-    global _model
-    if _model is None:
-        from tribev2.demo_utils import TribeModel
-        import huggingface_hub
-        hf_token = os.environ.get('HF_TOKEN')
-        if hf_token:
-            huggingface_hub.login(token=hf_token, add_to_git_credential=False)
-        os.makedirs(_CACHE_DIR, exist_ok=True)
-        logger.info('Loading TRIBE v2 model (first run downloads ~1 GB)…')
-        _model = TribeModel.from_pretrained(_MODEL_ID, cache_folder=_CACHE_DIR)
-        logger.info('TRIBE v2 model loaded.')
-    return _model
-
-
-def _download_video(url, tmpdir):
-    """Download video to tmpdir using yt-dlp. Returns path to file."""
-    out_template = os.path.join(tmpdir, 'video.%(ext)s')
-    result = subprocess.run(
-        ['yt-dlp', '-o', out_template, '-f', 'mp4/best[ext=mp4]/best',
-         '--no-playlist', '--quiet', url],
-        capture_output=True, text=True, timeout=120
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f'yt-dlp failed: {result.stderr.strip()}')
-    files = glob.glob(os.path.join(tmpdir, 'video.*'))
-    if not files:
-        raise RuntimeError('yt-dlp produced no output file')
-    return files[0]
-
 
 def run_inference(video_id):
     """
-    Full pipeline: download → infer → save scores → generate suggestions.
+    Full pipeline: Modal GPU inference → save scores → Claude Vision suggestions.
     Designed to run in a background thread with its own Flask app context.
     Must be called inside `with app.app_context()`.
     """
-    # Import here to avoid circular import (tribe.py imported by app.py)
     from models import db, Video
     import ai
 
@@ -67,33 +28,24 @@ def run_inference(video_id):
         video.tribe_status = 'running'
         db.session.commit()
 
-        # 1. Load model (cached after first call)
-        model = _load_model()
+        # Run inference on Modal GPU — blocks until complete (~2 min on T4)
+        logger.info(f'Dispatching TRIBE inference to Modal for video {video_id}: {video.url}')
+        from tribe_modal import run_tribe_inference
+        result = run_tribe_inference.remote(video.url)
 
-        # 2. Download video to a temp directory
-        with tempfile.TemporaryDirectory() as tmpdir:
-            logger.info(f'Downloading video {video_id}: {video.url}')
-            video_path = _download_video(video.url, tmpdir)
-            logger.info(f'Running TRIBE inference on {video_path}')
+        scores = result['scores']
+        frames = result['frames']   # {t=Xs: base64_jpeg, ...}
+        peak_t = result['peak_t']
+        trough_t = result['trough_t']
 
-            # 3. Run inference
-            import warnings
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                df = model.get_events_dataframe(video_path=video_path)
-                preds, _ = model.predict(events=df)  # (n_seconds, 20484)
+        logger.info(f'TRIBE inference done: {len(scores)}s, peak={peak_t}s, trough={trough_t}s')
 
-        # 4. Mean activation across all cortical vertices per second
-        import numpy as np
-        scores = preds.mean(axis=1).tolist()
-        logger.info(f'TRIBE inference done: {len(scores)}s, peak t={scores.index(max(scores))}s')
-
-        # 5. Save scores
-        video.tribe_scores = json.dumps([round(float(v), 6) for v in scores])
+        # Save scores
+        video.tribe_scores = json.dumps(scores)
         db.session.commit()
 
-        # 6. Generate Claude suggestions
-        suggestions = ai.generate_tribe_suggestions(video, scores)
+        # Generate Claude Vision suggestions using scores + extracted frames
+        suggestions = ai.generate_tribe_suggestions(video, scores, frames=frames)
         video.tribe_suggestions = suggestions
         video.tribe_status = 'done'
         db.session.commit()

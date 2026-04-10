@@ -7,3 +7,4 @@ python-dotenv
 requests
 openai-whisper
 apify-client
+modal

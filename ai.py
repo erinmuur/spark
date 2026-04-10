@@ -134,9 +134,12 @@ Respond with JSON only: {{"video_format": "<one of: {', '.join(UGC_FORMATS)}>"}}
         return None
 
 
-def generate_tribe_suggestions(video, scores):
+def generate_tribe_suggestions(video, scores, frames=None):
     """Generate editing suggestions from TRIBE v2 brain activation scores.
-    scores: list of floats, one per second (mean activation across 20,484 cortical vertices)."""
+
+    scores: list of floats, one per second (mean activation across 20,484 cortical vertices)
+    frames: optional dict {t=Xs: base64_jpeg} from Modal — enables Claude Vision
+    """
     n = len(scores)
     if n == 0:
         return None
@@ -150,10 +153,9 @@ def generate_tribe_suggestions(video, scores):
     trough_t = scores.index(min_act)
 
     timeline_str = '\n'.join(f'  t={i}s: {norm:.0f}/100' for i, norm in enumerate(normalized))
-
     framework_name = video.framework.name if video.framework else 'Unknown'
 
-    prompt = f"""You are a video editing strategist. You have brain engagement data from TRIBE v2 (Meta's fMRI brain encoding model) for a short-form video. Scores represent predicted cortical activation per second — a proxy for cognitive engagement — normalized 0–100 for this specific video.
+    text_prompt = f"""You are a video editing strategist. You have brain engagement data from TRIBE v2 (Meta's fMRI brain encoding model) for a short-form video. Scores represent predicted cortical activation per second — a proxy for cognitive engagement — normalized 0–100 for this specific video.
 
 VIDEO:
 - Platform: {video.platform}
@@ -166,19 +168,46 @@ BRAIN ENGAGEMENT TIMELINE (0 = lowest engagement in this video, 100 = highest):
 {timeline_str}
 
 Duration: {n}s | Peak: t={peak_t}s | Lowest: t={trough_t}s
+"""
 
-Based on this engagement curve, provide:
-1. The 1–2 highest-engagement moments and why they likely spiked (what probably happens at that second based on the caption/analysis)
-2. The 1–2 lowest-engagement moments and what's likely causing the drop
+    if frames:
+        text_prompt += "\nThe images attached show frames extracted at the peak and lowest engagement moments. Use what you can see on screen to make your observations specific.\n"
+
+    text_prompt += """
+Based on this data, provide:
+1. The 1–2 highest-engagement moments — reference what's visually happening on screen and why it likely spiked
+2. The 1–2 lowest-engagement moments — reference what's on screen and what's likely causing the drop
 3. 2–3 specific editing recommendations (pacing, cuts, text overlays, audio) to lift the low points
 
 Be concise and actionable. Reference specific timestamps (e.g. "at t=4s")."""
 
+    # Build message content — interleave frame images with the text prompt
+    content = []
+
+    if frames:
+        # Add labelled frames sorted by timestamp
+        for label in sorted(frames.keys(), key=lambda x: int(x.replace('t=', '').replace('s', ''))):
+            score_idx = int(label.replace('t=', '').replace('s', ''))
+            norm_score = normalized[score_idx] if score_idx < len(normalized) else 0
+            engagement = 'PEAK' if score_idx == peak_t else ('LOWEST' if score_idx == trough_t else '')
+            caption = f"Frame at {label} — engagement score: {norm_score:.0f}/100 {engagement}".strip()
+            content.append({'type': 'text', 'text': caption})
+            content.append({
+                'type': 'image',
+                'source': {
+                    'type': 'base64',
+                    'media_type': 'image/jpeg',
+                    'data': frames[label],
+                }
+            })
+
+    content.append({'type': 'text', 'text': text_prompt})
+
     try:
         message = client.messages.create(
             model=MODEL,
-            max_tokens=600,
-            messages=[{'role': 'user', 'content': prompt}]
+            max_tokens=700,
+            messages=[{'role': 'user', 'content': content}]
         )
         return message.content[0].text.strip()
     except Exception as e:
