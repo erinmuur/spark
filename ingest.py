@@ -211,11 +211,19 @@ def fetch_metadata(url):
 
     save_count = info.get('digg_count') or info.get('favorite_count')
 
-    # For TikTok, try Apify to get saves (collectCount) since yt-dlp doesn't provide it
-    if is_tiktok and save_count is None:
+    # For TikTok, try Apify to fill in missing thumbnail and/or saves
+    if is_tiktok and (not thumbnail or save_count is None):
         apify_data = _fetch_tiktok_via_apify(url)
-        if apify_data and apify_data.get('save_count') is not None:
-            save_count = apify_data['save_count']
+        if apify_data:
+            if not thumbnail and apify_data.get('thumbnail_url'):
+                thumbnail = apify_data['thumbnail_url']
+            if save_count is None and apify_data.get('save_count') is not None:
+                save_count = apify_data['save_count']
+    # Last resort for TikTok thumbnail: oEmbed API (stable, doesn't expire)
+    if is_tiktok and not thumbnail:
+        oembed = _fetch_tiktok_oembed(url)
+        if oembed and oembed.get('thumbnail_url'):
+            thumbnail = oembed['thumbnail_url']
 
     return {
         'title': info.get('title', ''),

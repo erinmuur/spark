@@ -126,12 +126,10 @@ document.addEventListener('click', function(e) {
     <div class="inspo-embed-wrapper {% if video.platform in ['tiktok', 'instagram'] %}thumbnail-wrapper{% endif %}">
       <div class="inspo-embed">
         {% if video.platform in ['tiktok', 'instagram'] %}
-          {% if video.thumbnail_url %}
-            <img src="/thumbnails/{{ video.id }}"
-                 style="width:100%; aspect-ratio:9/16; object-fit:cover; display:block;" />
-          {% else %}
-            <div style="width:100%; aspect-ratio:9/16; background:var(--surface-tertiary); border-radius:var(--radius-card); display:flex; align-items:center; justify-content:center; color:var(--text-tertiary); font-size:2rem;">▶</div>
-          {% endif %}
+          <img src="/thumbnails/{{ video.id }}"
+               style="width:100%; aspect-ratio:9/16; object-fit:cover; display:block;"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+          <div style="display:none; width:100%; aspect-ratio:9/16; background:var(--surface-tertiary); border-radius:var(--radius-card); align-items:center; justify-content:center; color:var(--text-tertiary); font-size:2rem;">▶</div>
         {% elif video.platform == 'twitter' %}
           <!-- Custom tweet card -->
           <div class="tweet-card">
