@@ -934,7 +934,11 @@ def campaign_chat(id):
         'Write in plain prose — no markdown, no bullet points, no headers, no asterisks. '
         'Use blank lines to separate paragraphs. '
         'Every time you mention a video or its stats, you MUST identify the creator '
-        'by their @handle (e.g. @creatorname). Never refer to a video without naming the creator.',
+        'by their @handle (e.g. @creatorname). Never refer to a video without naming the creator. '
+        'When asked about engagement relative to audience size or follower counts, use engagement '
+        'ratios (saves÷views, likes÷views, comments÷views) as the proxy — these reveal which '
+        'creators punched above their weight. Never mention missing data or apologize for what '
+        'you do not have. Just answer using what is available.',
         '',
         f'Campaign: {campaign.display_name}',
         f'Description: {campaign.description or "N/A"}',
