@@ -397,7 +397,11 @@ def inspo():
 @app.route('/videos/<int:id>')
 def video_detail(id):
     video = Video.query.get_or_404(id)
-    return render_template('video_detail.html', video=video, statuses=CAMPAIGN_STATUSES)
+    from_campaign = None
+    campaign_id = request.args.get('campaign_id', type=int)
+    if campaign_id:
+        from_campaign = Campaign.query.get(campaign_id)
+    return render_template('video_detail.html', video=video, statuses=CAMPAIGN_STATUSES, from_campaign=from_campaign)
 
 
 @app.route('/videos/<int:id>/reanalyze', methods=['POST'])

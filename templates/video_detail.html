@@ -3,7 +3,11 @@
 
 {% block content %}
 <div style="margin-bottom:1.5rem;">
-  <a href="/" style="font-size:0.85rem; color:var(--text-tertiary); text-decoration:none;">← Back to Inspo</a>
+  {% if from_campaign %}
+    <a href="/campaigns/{{ from_campaign.id }}" style="font-size:0.85rem; color:var(--text-tertiary); text-decoration:none;">← Back to {{ from_campaign.name or 'Campaign' }}</a>
+  {% else %}
+    <a href="/" style="font-size:0.85rem; color:var(--text-tertiary); text-decoration:none;">← Back to Inspo</a>
+  {% endif %}
 </div>
 
 <div class="detail-layout">
