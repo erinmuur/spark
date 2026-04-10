@@ -214,6 +214,23 @@ Be concise and actionable. Reference specific timestamps (e.g. "at t=4s")."""
         return f'Error generating suggestions: {e}'
 
 
+def chat_campaign_stream(system_prompt, user_message, history):
+    """Stream a campaign chat response. Yields text delta chunks."""
+    messages = []
+    for msg in history:
+        messages.append({"role": msg["role"], "content": msg["content"]})
+    messages.append({"role": "user", "content": user_message})
+
+    with client.messages.stream(
+        model=MODEL,
+        max_tokens=1500,
+        system=system_prompt,
+        messages=messages,
+    ) as stream:
+        for text in stream.text_stream:
+            yield text
+
+
 def generate_campaign(video, framework, product, context_notes):
     """Generate a creative brief. Returns a dict with campaign fields."""
     framework_info = ''

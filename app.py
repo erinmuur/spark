@@ -193,16 +193,10 @@ def backfill_campaign_videos():
 
 
 def seed_db():
-    """Seed default frameworks and products if tables are empty."""
-    # Remove stale default frameworks from the original seed
-    stale = Framework.query.filter(Framework.name.in_(_STALE_DEFAULT_FRAMEWORKS)).all()
-    for f in stale:
-        db.session.delete(f)
-
-    if Framework.query.count() == len(stale):
-        for f in DEFAULT_FRAMEWORKS:
-            if not Framework.query.filter_by(name=f['name']).first():
-                db.session.add(Framework(**f))
+    """Seed default frameworks and products, adding any that are missing."""
+    for f in DEFAULT_FRAMEWORKS:
+        if not Framework.query.filter_by(name=f['name']).first():
+            db.session.add(Framework(**f))
 
     if Product.query.count() == 0:
         for p in DEFAULT_PRODUCTS:
@@ -292,6 +286,7 @@ def find_or_create_videos(urls):
     from ingest import detect_platform, _clean_url
     videos = []
     new_video_ids = []
+    to_reclassify = []
     for url in urls:
         url = _clean_url(url.strip())
         if not url:
@@ -299,6 +294,9 @@ def find_or_create_videos(urls):
         existing = Video.query.filter_by(url=url).first()
         if existing:
             videos.append(existing)
+            # Queue classification for existing videos missing framework or format
+            if not existing.framework_id or not existing.video_format:
+                to_reclassify.append(existing.id)
         else:
             video = Video(url=url, platform=detect_platform(url))
             db.session.add(video)
@@ -309,6 +307,9 @@ def find_or_create_videos(urls):
     # Stagger thread launches to avoid simultaneous DB writes (StaleDataError)
     for i, video_id in enumerate(new_video_ids):
         threading.Timer(i * 4, lambda vid=video_id: _process_new_video(vid)).start()
+    # Reclassify existing videos missing framework/format
+    if to_reclassify:
+        threading.Thread(target=_reclassify_batch, args=(to_reclassify,), daemon=True).start()
     return videos
 
 
@@ -880,6 +881,61 @@ def campaign_status(id):
 
 
 # ---------------------------------------------------------------------------
+# Campaign Chat (streaming)
+# ---------------------------------------------------------------------------
+
+@app.route('/campaigns/<int:id>/chat', methods=['POST'])
+def campaign_chat(id):
+    campaign = Campaign.query.get_or_404(id)
+    data = request.get_json()
+    user_message = data.get('message', '').strip()
+    history = data.get('history', [])
+
+    if not user_message:
+        return jsonify({'error': 'empty message'}), 400
+
+    # Build system prompt with campaign context
+    product_name = campaign.product.name if campaign.product else 'N/A'
+    lines = [
+        'You are a campaign analyst for a short-form video marketing team. '
+        'Answer questions about this campaign using the data below.',
+        '',
+        f'Campaign: {campaign.display_name}',
+        f'Description: {campaign.description or "N/A"}',
+        f'Status: {campaign.status}',
+        f'Product: {product_name}',
+        '',
+        f'Videos in this campaign ({len(campaign.campaign_videos)} total):',
+    ]
+    for i, cv in enumerate(campaign.campaign_videos, 1):
+        v = cv.video
+        fw_name = v.framework.name if v.framework else 'Unclassified'
+        lines.append(
+            f'{i}. "{v.title or "Untitled"}" by @{v.creator or "unknown"} ({v.platform or "?"})'
+        )
+        lines.append(f'   Framework: {fw_name} | Format: {v.video_format or "N/A"}')
+        if v.analysis:
+            lines.append(f'   Analysis: {v.analysis}')
+        lines.append(
+            f'   Metrics: {cv.views or 0} views, {cv.likes or 0} likes, '
+            f'{cv.comments or 0} comments, {cv.shares or 0} shares, {cv.saves or 0} saves'
+        )
+
+    system_prompt = '\n'.join(lines)
+
+    def generate():
+        try:
+            for chunk in ai.chat_campaign_stream(system_prompt, user_message, history):
+                yield f"data: {chunk}\n\n"
+        except Exception as e:
+            yield f"data: [ERROR] {e}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return Response(generate(), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
+
+# ---------------------------------------------------------------------------
 # Analytics
 # ---------------------------------------------------------------------------
 
@@ -932,6 +988,54 @@ def campaign_add_videos(campaign_id):
 
     if request.headers.get('HX-Request'):
         return '', 204, {'HX-Redirect': url_for('campaign_detail', id=campaign_id)}
+    return redirect(url_for('campaign_detail', id=campaign_id))
+
+
+def _reclassify_batch(video_ids):
+    """Classify a batch of videos sequentially using existing metadata (no media download)."""
+    import sys
+    print(f"[reclassify] Starting batch for {len(video_ids)} videos: {video_ids}", file=sys.stderr, flush=True)
+    try:
+        with app.app_context():
+            for vid in video_ids:
+                try:
+                    video = Video.query.get(vid)
+                    if not video:
+                        print(f"[reclassify] Video {vid} not found, skipping", file=sys.stderr, flush=True)
+                        continue
+                    frameworks = Framework.query.all()
+                    print(f"[reclassify] Classifying video {vid} against {len(frameworks)} frameworks...", file=sys.stderr, flush=True)
+                    framework_id, analysis, video_format = ai.classify_video(
+                        video, frameworks, transcript=video.transcript
+                    )
+                    print(f"[reclassify] Video {vid}: raw result framework={framework_id}, analysis={analysis!r:.200}, format={video_format}", file=sys.stderr, flush=True)
+                    if framework_id:
+                        video.framework_id = framework_id
+                    if analysis:
+                        video.analysis = analysis
+                    if video_format:
+                        video.video_format = video_format
+                    db.session.commit()
+                except Exception as e:
+                    print(f"[reclassify] Error processing video {vid}: {e}", file=sys.stderr, flush=True)
+    except Exception as e:
+        print(f"[reclassify] Fatal error: {e}", file=sys.stderr, flush=True)
+
+
+@app.route('/campaigns/<int:campaign_id>/reclassify', methods=['POST'])
+def campaign_reclassify(campaign_id):
+    campaign = Campaign.query.get_or_404(campaign_id)
+    video_ids = [
+        cv.video.id for cv in campaign.campaign_videos
+        if not cv.video.framework_id or not cv.video.video_format
+    ]
+    if video_ids:
+        threading.Thread(target=_reclassify_batch, args=(video_ids,), daemon=True).start()
+    if request.headers.get('HX-Request'):
+        if video_ids:
+            n = len(video_ids)
+            return f'<span style="font-size:0.78rem; color:var(--text-tertiary);">Reclassifying {n} video{"s" if n != 1 else ""}… refresh in ~{n * 15}s</span>'
+        return '<span style="font-size:0.78rem; color:var(--text-tertiary);">All videos already classified</span>'
     return redirect(url_for('campaign_detail', id=campaign_id))
 
 
