@@ -18,6 +18,8 @@ services:
       ANTHROPIC_API_KEY: "${ENV.ANTHROPIC_API_KEY}"
       SLACK_CHANNEL_ID: "${ENV.SLACK_CHANNEL_ID}"
       APIFY_API_TOKEN: "${ENV.APIFY_API_TOKEN}"
+      MODAL_TOKEN_ID: "${ENV.MODAL_TOKEN_ID}"
+      MODAL_TOKEN_SECRET: "${ENV.MODAL_TOKEN_SECRET}"
       DATABASE_URL: "sqlite:////app/data/spark.db"
     source_mounts:
       - source: "./data"
