@@ -156,26 +156,6 @@
       </div>
       {% endif %}
 
-      {# Metrics form (collapsed) #}
-      <details class="cd-metrics-details">
-        <summary class="cd-metrics-toggle">Edit metrics</summary>
-        <form hx-post="/campaigns/{{ campaign.id }}/videos/{{ cv.video.id }}/metrics"
-              hx-target="#cv-notice-{{ cv.video.id }}"
-              hx-swap="innerHTML"
-              class="cd-metrics-form">
-          <div class="cd-metrics-row">
-            <label>Views <input type="number" name="views" value="{{ cv.views or '' }}" placeholder="0" min="0" /></label>
-            <label>Likes <input type="number" name="likes" value="{{ cv.likes or '' }}" placeholder="0" min="0" /></label>
-            <label>Comments <input type="number" name="comments" value="{{ cv.comments or '' }}" placeholder="0" min="0" /></label>
-            <label>Shares <input type="number" name="shares" value="{{ cv.shares or '' }}" placeholder="0" min="0" /></label>
-            <label>Saves <input type="number" name="saves" value="{{ cv.saves or '' }}" placeholder="0" min="0" /></label>
-          </div>
-          <div style="display:flex; align-items:center; gap:0.5rem;">
-            <button type="submit" class="cd-save-btn">Save</button>
-            <span id="cv-notice-{{ cv.video.id }}"></span>
-          </div>
-        </form>
-      </details>
     </div>
   </div>
   {% endfor %}
