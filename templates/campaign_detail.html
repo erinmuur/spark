@@ -77,6 +77,20 @@
   </form>
 </details>
 
+{# ── Campaign Chat ── #}
+<div class="cd-chat-section">
+  <h3 class="cd-section-title" style="margin-bottom:0.75rem;">Analyze this Campaign</h3>
+  <div class="cd-chat-container">
+    <div class="cd-chat-messages" id="chat-messages"></div>
+    <div class="cd-chat-input-row">
+      <input type="text" id="chat-input" class="cd-chat-input"
+             placeholder="Ask about this campaign's videos, themes, performance..."
+             autocomplete="off" />
+      <button type="button" id="chat-send" class="cd-chat-send" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+</div>
+
 {# ── Video grid ── #}
 {% if campaign.campaign_videos %}
 <div class="cd-section-header">
@@ -181,20 +195,6 @@
   {% endfor %}
 </div>
 {% endif %}
-
-{# ── Campaign Chat ── #}
-<div class="cd-chat-section">
-  <h3 class="cd-section-title" style="margin-bottom:0.75rem;">Analyze this Campaign</h3>
-  <div class="cd-chat-container">
-    <div class="cd-chat-messages" id="chat-messages"></div>
-    <div class="cd-chat-input-row">
-      <input type="text" id="chat-input" class="cd-chat-input"
-             placeholder="Ask about this campaign's videos, themes, performance..."
-             autocomplete="off" />
-      <button type="button" id="chat-send" class="cd-chat-send" onclick="sendMessage()">Send</button>
-    </div>
-  </div>
-</div>
 
 {# ── Legacy brief editor (Inspo-flow campaigns) ── #}
 {% if campaign.concept or campaign.hook or campaign.video_id %}
