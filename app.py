@@ -930,7 +930,10 @@ def campaign_chat(id):
     product_name = campaign.product.name if campaign.product else 'N/A'
     lines = [
         'You are a campaign analyst for a short-form video marketing team. '
-        'Answer questions about this campaign using the data below.',
+        'Answer questions about this campaign using the data below. '
+        'Write in plain prose — no markdown, no bullet points, no headers, no asterisks. '
+        'Use blank lines to separate paragraphs. '
+        'When mentioning a creator, write their handle as @username.',
         '',
         f'Campaign: {campaign.display_name}',
         f'Description: {campaign.description or "N/A"}',

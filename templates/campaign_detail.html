@@ -869,9 +869,19 @@ var chatHistory = [];
 var chatStreaming = false;
 
 function renderMd(text) {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>');
+  // Strip any stray markdown artifacts Claude might still emit
+  var t = text
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/^[-•]\s+/gm, '');
+  // Bold @username mentions
+  t = t.replace(/(@[\w.]+)/g, '<strong>$1</strong>');
+  // Double newline → paragraph break; single newline → space
+  var paras = t.split(/\n{2,}/);
+  return paras.map(function(p) {
+    return '<p style="margin:0 0 0.75rem;">' + p.replace(/\n/g, ' ').trim() + '</p>';
+  }).join('');
 }
 
 function scrollChat() {
