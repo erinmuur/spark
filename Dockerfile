@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 # Pre-download Whisper tiny model so first video doesn't stall
 RUN python -c "import whisper; whisper.load_model('tiny')"
 
+ARG BUILD_ID=1
 COPY . .
 RUN python -c "import app; print('app loaded ok')"
 
