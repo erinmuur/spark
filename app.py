@@ -290,6 +290,7 @@ def find_or_create_videos(urls):
     """Given a list of URLs, find existing Video records or create new ones."""
     from ingest import detect_platform, _clean_url
     videos = []
+    new_video_ids = []
     for url in urls:
         url = _clean_url(url.strip())
         if not url:
@@ -302,8 +303,11 @@ def find_or_create_videos(urls):
             db.session.add(video)
             db.session.flush()
             videos.append(video)
-            threading.Thread(target=_process_new_video, args=(video.id,), daemon=True).start()
+            new_video_ids.append(video.id)
     db.session.commit()
+    # Stagger thread launches to avoid simultaneous DB writes (StaleDataError)
+    for i, video_id in enumerate(new_video_ids):
+        threading.Timer(i * 4, lambda vid=video_id: _process_new_video(vid)).start()
     return videos
 
 
