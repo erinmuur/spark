@@ -489,7 +489,8 @@ def admin_env_debug():
     import subprocess
     modal_ver = subprocess.run(['pip', 'show', 'modal'], capture_output=True, text=True).stdout
     uvx_path = subprocess.run(['which', 'uvx'], capture_output=True, text=True).stdout.strip() or 'not found'
-    return jsonify({'modal': modal_ver, 'uvx': uvx_path})
+    routes = sorted([str(r) for r in app.url_map.iter_rules() if 'admin' in str(r)])
+    return jsonify({'modal': modal_ver, 'uvx': uvx_path, 'admin_routes': routes})
 
 
 @app.route('/admin/video-debug')
