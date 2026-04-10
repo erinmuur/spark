@@ -313,6 +313,7 @@ def _fetch_instagram_via_apify(url):
             'comment_count': item.get('commentsCount'),
             'share_count': item.get('sharesCount') or item.get('reshareCount') or item.get('repostsCount'),
             'save_count': None,
+            'follower_count': item.get('ownerFollowersCount') or item.get('followersCount'),
             'embed_html': embed_html,
             'raw': json.dumps({
                 'title': item.get('caption', '')[:120],

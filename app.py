@@ -532,6 +532,30 @@ def admin_retry_missing_thumbnails():
     return jsonify({'retrying': count, 'ids': [v.id for v in missing]})
 
 
+@app.route('/admin/backfill-followers', methods=['POST'])
+def admin_backfill_followers():
+    """Re-fetch Apify data for TikTok videos missing follower counts."""
+    from ingest import _fetch_tiktok_via_apify, _fetch_instagram_via_apify
+    videos = Video.query.filter(
+        Video.follower_count.is_(None),
+        Video.platform.in_(['tiktok', 'instagram']),
+    ).all()
+    updated = 0
+    for v in videos:
+        try:
+            if v.platform == 'tiktok':
+                data = _fetch_tiktok_via_apify(v.url)
+            else:
+                data = _fetch_instagram_via_apify(v.url)
+            if data and data.get('follower_count') is not None:
+                v.follower_count = data['follower_count']
+                updated += 1
+        except Exception:
+            pass
+    db.session.commit()
+    return jsonify({'checked': len(videos), 'updated': updated})
+
+
 @app.route('/admin/fix-thumbnail/<int:video_id>', methods=['POST'])
 def admin_fix_thumbnail(video_id):
     """Re-fetch thumbnail for a specific video via fresh metadata call."""
