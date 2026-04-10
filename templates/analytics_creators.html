@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Creator Analytics — Spark{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem;">
+  <h2 style="margin:0;">Analytics</h2>
+  <small style="color:var(--text-secondary);">Performance aggregated by creator</small>
+</div>
+
+{% include 'partials/analytics_tabs.html' %}
+
+<!-- Stat cards -->
+<div class="dash-stats">
+  <div class="dash-card">
+    <div class="dash-value">{{ '{:,}'.format(total_views) }}</div>
+    <div class="dash-label">Total Views</div>
+  </div>
+  <div class="dash-card">
+    <div class="dash-value">{{ '{:,}'.format(total_likes) }}</div>
+    <div class="dash-label">Total Likes</div>
+  </div>
+  <div class="dash-card">
+    <div class="dash-value">{{ '{:,}'.format(total_comments) }}</div>
+    <div class="dash-label">Total Comments</div>
+  </div>
+  <div class="dash-card">
+    <div class="dash-value">{{ '{:,}'.format(total_saves) }}</div>
+    <div class="dash-label">Total Saves</div>
+  </div>
+</div>
+
+{% if not creator_rows %}
+<div style="text-align:center; padding:4rem 0; color:var(--text-secondary);">
+  <p style="font-size:2rem;">📊</p>
+  <p>No creator data yet. Add videos to campaigns with metrics to see creator analytics.</p>
+</div>
+{% else %}
+
+<div style="margin-bottom:0.75rem;">
+  <h3 style="margin:0; font-size:1rem;">Creator Performance</h3>
+</div>
+
+<div class="dash-table-wrapper">
+<table class="dash-table sortable-table" id="creator-table">
+  <thead>
+    <tr>
+      <th class="sortable" data-col="0" data-type="text">Creator <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="1" data-type="text">Platform <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="2" data-type="num" style="text-align:center;">Videos <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="3" data-type="num" style="text-align:right;">Views <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="4" data-type="num" style="text-align:right;">Likes <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="5" data-type="num" style="text-align:right;">Comments <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="6" data-type="num" style="text-align:right;">Shares <span class="sort-arrow"></span></th>
+      <th class="sortable" data-col="7" data-type="num" style="text-align:right;">Saves <span class="sort-arrow"></span></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in creator_rows %}
+    <tr>
+      <td data-val="{{ row.creator }}">
+        <strong>@{{ row.creator }}</strong>
+      </td>
+      <td data-val="{{ row.platform }}">
+        <span class="badge badge-{{ row.platform }}">{{ row.platform }}</span>
+      </td>
+      <td style="text-align:center; font-variant-numeric:tabular-nums;" data-val="{{ row.video_count }}">{{ row.video_count }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ row.views }}">{{ '{:,}'.format(row.views) if row.views else '—' }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ row.likes }}">{{ '{:,}'.format(row.likes) if row.likes else '—' }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ row.comments }}">{{ '{:,}'.format(row.comments) if row.comments else '—' }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ row.shares }}">{{ '{:,}'.format(row.shares) if row.shares else '—' }}</td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;" data-val="{{ row.saves }}">{{ '{:,}'.format(row.saves) if row.saves else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% endif %}
+
+<style>
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+@media (max-width: 720px) { .dash-stats { grid-template-columns: repeat(2, 1fr); } }
+.dash-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-card);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-100);
+}
+.dash-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+.dash-label {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.dash-table-wrapper {
+  overflow-x: auto;
+}
+.dash-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.dash-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+.dash-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+.dash-table tbody tr:hover {
+  background: var(--surface-tertiary);
+}
+
+/* Sortable columns */
+.dash-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+.dash-table th.sortable:hover {
+  color: var(--text-primary);
+}
+.dash-table th.sortable.asc,
+.dash-table th.sortable.desc {
+  color: var(--interactive-default);
+}
+.sort-arrow {
+  display: inline-block;
+  font-size: 0.6rem;
+  margin-left: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.dash-table th.sortable:hover .sort-arrow { opacity: 0.4; }
+.dash-table th.sortable:hover .sort-arrow::after { content: '▲'; }
+.dash-table th.sortable.asc .sort-arrow { opacity: 1; }
+.dash-table th.sortable.asc .sort-arrow::after { content: '▲'; }
+.dash-table th.sortable.desc .sort-arrow { opacity: 1; }
+.dash-table th.sortable.desc .sort-arrow::after { content: '▼'; }
+</style>
+
+<script>
+document.querySelectorAll('.sortable-table').forEach(function(table) {
+  table.querySelectorAll('th.sortable').forEach(function(th) {
+    th.addEventListener('click', function() {
+      var col = parseInt(th.dataset.col);
+      var type = th.dataset.type;
+      var tbody = table.querySelector('tbody');
+      var rows = Array.from(tbody.querySelectorAll('tr'));
+      var isAsc = th.classList.contains('asc');
+
+      table.querySelectorAll('th.sortable').forEach(function(h) {
+        h.classList.remove('asc', 'desc');
+      });
+
+      var dir = isAsc ? 'desc' : 'asc';
+      th.classList.add(dir);
+
+      rows.sort(function(a, b) {
+        var aVal = a.children[col].getAttribute('data-val') || a.children[col].textContent.trim();
+        var bVal = b.children[col].getAttribute('data-val') || b.children[col].textContent.trim();
+
+        if (type === 'num') {
+          aVal = parseFloat(aVal) || 0;
+          bVal = parseFloat(bVal) || 0;
+          return dir === 'asc' ? aVal - bVal : bVal - aVal;
+        } else {
+          aVal = aVal.toLowerCase();
+          bVal = bVal.toLowerCase();
+          if (aVal < bVal) return dir === 'asc' ? -1 : 1;
+          if (aVal > bVal) return dir === 'asc' ? 1 : -1;
+          return 0;
+        }
+      });
+
+      rows.forEach(function(row) { tbody.appendChild(row); });
+    });
+  });
+});
+</script>
+{% endblock %}
