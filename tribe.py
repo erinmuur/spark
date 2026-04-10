@@ -40,7 +40,7 @@ def run_inference(video_id):
         response = requests.post(
             TRIBE_MODAL_URL,
             json={"url": video.url},
-            timeout=360,  # 6 min — Modal function times out at 5 min
+            timeout=(10, 330),  # (connect timeout, read timeout) — Modal fn is 300s max
         )
         response.raise_for_status()
         result = response.json()

@@ -635,7 +635,10 @@ def admin_apify_debug():
 @app.route('/admin/clear-tribe-errors', methods=['POST'])
 def admin_clear_tribe_errors():
     """Reset all failed/errored TRIBE statuses back to idle."""
-    videos = Video.query.filter(Video.tribe_status.like('error:%')).all()
+    from sqlalchemy import or_
+    videos = Video.query.filter(
+        or_(Video.tribe_status.like('error:%'), Video.tribe_status == 'running')
+    ).all()
     count = len(videos)
     for v in videos:
         v.tribe_status = None
