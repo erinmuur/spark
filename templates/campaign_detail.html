@@ -134,7 +134,9 @@
        data-comments="{{ cv.comments or 0 }}"
        data-shares="{{ cv.shares or 0 }}"
        data-saves="{{ cv.saves or 0 }}"
-       data-added="{{ loop.index }}">
+       data-added="{{ loop.index }}"
+       onclick="window.location='/videos/{{ cv.video.id }}'"
+       style="cursor:pointer;">
 
     {# Thumbnail #}
     <div class="cd-card-thumb">
@@ -145,13 +147,6 @@
           <svg width="20" height="20" viewBox="0 0 16 16" fill="var(--text-tertiary)"><polygon points="6,3 13,8 6,13"/></svg>
         </div>
       {% endif %}
-      {# Overlay link #}
-      <a href="{{ cv.video.url }}" target="_blank" rel="noopener" class="cd-card-overlay" title="View original">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 9v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h4"/>
-          <polyline points="8,2 14,2 14,8"/><line x1="14" y1="2" x2="7" y2="9"/>
-        </svg>
-      </a>
     </div>
 
     {# Card body #}
@@ -182,7 +177,7 @@
       {% endif %}
 
       {# Metrics form (collapsed) #}
-      <details class="cd-metrics-details">
+      <details class="cd-metrics-details" onclick="event.stopPropagation()">
         <summary class="cd-metrics-toggle">Edit metrics</summary>
         <form hx-post="/campaigns/{{ campaign.id }}/videos/{{ cv.video.id }}/metrics"
               hx-target="#cv-notice-{{ cv.video.id }}"
@@ -432,8 +427,8 @@
   box-shadow: var(--shadow-100);
 }
 .cd-card:hover {
-  border-color: var(--border-default);
-  transform: translateY(-1px);
+  border-color: var(--interactive-default);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-200);
 }
 
@@ -442,11 +437,26 @@
   position: relative;
   overflow: hidden;
 }
+.cd-card-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0);
+  transition: background 0.2s;
+  pointer-events: none;
+}
+.cd-card:hover .cd-card-thumb::after {
+  background: rgba(0,0,0,0.15);
+}
 .cd-card-thumb img {
   width: 100%;
   aspect-ratio: 9/16;
   object-fit: cover;
   display: block;
+  transition: transform 0.2s;
+}
+.cd-card:hover .cd-card-thumb img {
+  transform: scale(1.03);
 }
 .cd-card-thumb-ph {
   width: 100%;
@@ -456,25 +466,6 @@
   align-items: center;
   justify-content: center;
 }
-.cd-card-overlay {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255,255,255,0.7);
-  opacity: 0;
-  transition: opacity 0.15s;
-  text-decoration: none;
-}
-.cd-card:hover .cd-card-overlay { opacity: 1; }
-.cd-card-overlay:hover { color: #fff; background: rgba(0,0,0,0.7); }
 
 /* Card body */
 .cd-card-body {
