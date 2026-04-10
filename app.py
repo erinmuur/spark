@@ -471,6 +471,14 @@ def video_delete(id):
     return redirect(url_for('inspo'))
 
 
+@app.route('/admin/env-debug')
+def admin_env_debug():
+    import subprocess
+    modal_ver = subprocess.run(['pip', 'show', 'modal'], capture_output=True, text=True).stdout
+    uvx_path = subprocess.run(['which', 'uvx'], capture_output=True, text=True).stdout.strip() or 'not found'
+    return jsonify({'modal': modal_ver, 'uvx': uvx_path})
+
+
 @app.route('/admin/video-debug')
 def admin_video_debug():
     """Temp: show raw_metadata for all videos."""
