@@ -90,6 +90,9 @@ def _fetch_tiktok_via_apify(url):
         if not items:
             return None
         item = items[0]
+        import logging as _logging
+        _logging.getLogger(__name__).info(f'Apify TikTok item keys: {list(item.keys())}')
+        _logging.getLogger(__name__).info(f'Apify TikTok saves fields: collectCount={item.get("collectCount")!r} savedCount={item.get("savedCount")!r} favoriteCount={item.get("favoriteCount")!r} bookmarkCount={item.get("bookmarkCount")!r}')
         author_meta = item.get('authorMeta', {}) if isinstance(item.get('authorMeta'), dict) else {}
         return {
             'title': (item.get('text') or '')[:120],
