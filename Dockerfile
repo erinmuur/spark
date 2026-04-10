@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+RUN pip install --no-cache-dir uv && uvx --version
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # Pre-download Whisper tiny model so first video doesn't stall
