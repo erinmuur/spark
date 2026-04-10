@@ -189,18 +189,20 @@
   font-size: 0.875rem;
   font-family: inherit;
   border-radius: var(--radius-button);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--interactive-default);
   background: transparent;
-  color: var(--text-secondary);
-  color: #fff;
+  color: var(--interactive-default);
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
   height: 38px;
 }
-.detail-action-btn:hover { border-color: var(--text-primary); color: var(--text-primary); background: transparent; transform: none; }
+[data-theme="dark"] .detail-action-btn {
+  border-color: var(--border-default);
+  color: #fff;
+}
+.detail-action-btn:hover { border-color: var(--interactive-hover); color: var(--interactive-hover); background: transparent; transform: none; }
 .fav-btn-detail.active { color: var(--feedback-error) !important; border-color: var(--feedback-error) !important; }
 .delete-btn:hover { color: var(--feedback-error) !important; border-color: var(--feedback-error) !important; }
-.detail-action-btn:hover { border-color: var(--pico-color); color: #fff; }
 /* Secondary buttons: orange in light mode, white text in dark mode */
 [data-theme="dark"] .detail-info button.secondary { color: #fff !important; }
 .fav-btn-detail.active { color: #ef4444 !important; border-color: #ef4444 !important; }
