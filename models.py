@@ -68,7 +68,7 @@ class CampaignVideo(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     campaign = db.relationship('Campaign', backref=db.backref('campaign_videos', lazy=True, cascade='all, delete-orphan'))
-    video = db.relationship('Video', backref=db.backref('campaign_video_links', lazy=True))
+    video = db.relationship('Video', backref=db.backref('campaign_video_links', lazy=True, cascade='all, delete-orphan'))
 
     __table_args__ = (db.UniqueConstraint('campaign_id', 'video_id', name='uq_campaign_video'),)
 
