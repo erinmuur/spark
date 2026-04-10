@@ -456,6 +456,23 @@ def video_delete(id):
     return redirect(url_for('inspo'))
 
 
+@app.route('/admin/delete-blank-videos', methods=['POST'])
+def admin_delete_blank_videos():
+    """One-shot: delete videos with no thumbnail and no creator (failed ingests)."""
+    blanks = Video.query.filter(
+        Video.thumbnail_url.is_(None),
+        Video.creator.is_(None),
+    ).all()
+    count = len(blanks)
+    for v in blanks:
+        thumb_path = os.path.join(_data_dir, 'thumbnails', f'{v.id}.jpg')
+        if os.path.exists(thumb_path):
+            os.remove(thumb_path)
+        db.session.delete(v)
+    db.session.commit()
+    return jsonify({'deleted': count})
+
+
 @app.route('/videos/<int:id>/favorite', methods=['POST'])
 def video_favorite(id):
     video = Video.query.get_or_404(id)
