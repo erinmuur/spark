@@ -1,0 +1,29 @@
+<!-- Analytics sub-nav tabs -->
+<div style="display:flex; gap:0.5rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+  <a href="/analytics" class="analytics-tab {% if active_tab == 'campaigns' %}active{% endif %}">Campaign Performance</a>
+  <a href="/analytics/frameworks" class="analytics-tab {% if active_tab == 'frameworks' %}active{% endif %}">Framework Performance</a>
+  <a href="/analytics/creators" class="analytics-tab {% if active_tab == 'creators' %}active{% endif %}">Creator Performance</a>
+</div>
+<style>
+.analytics-tab {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: var(--radius-button);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--panel-border);
+  transition: background 0.15s, color 0.15s;
+}
+.analytics-tab:hover {
+  background: var(--surface-tertiary);
+  color: var(--text-primary);
+}
+.analytics-tab.active {
+  background: var(--interactive-default);
+  color: #fff;
+  border-color: var(--interactive-default);
+}
+</style>

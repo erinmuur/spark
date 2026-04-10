@@ -509,7 +509,7 @@
     <a class="brand" href="/">⚡ Spark</a>
     <a href="/" class="{% if request.endpoint == 'inspo' %}active{% endif %}">Inspo</a>
     <a href="/campaigns" class="{% if request.endpoint in ['campaigns', 'campaign_detail', 'campaign_create_form'] %}active{% endif %}">Campaigns</a>
-    <a href="/analytics" class="{% if request.endpoint == 'analytics' %}active{% endif %}">Analytics</a>
+    <a href="/analytics" class="{% if request.endpoint in ['analytics', 'analytics_frameworks', 'analytics_creators'] %}active{% endif %}">Analytics</a>
     <a href="/settings" class="{% if request.endpoint == 'settings' %}active{% endif %}">Settings</a>
     <span class="nav-spacer"></span>
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" aria-label="Toggle theme">

@@ -895,7 +895,95 @@ def analytics():
 
     return render_template('analytics.html', campaigns=all_campaigns,
                            total_views=total_views, total_likes=total_likes,
-                           total_comments=total_comments, total_saves=total_saves)
+                           total_comments=total_comments, total_saves=total_saves,
+                           active_tab='campaigns')
+
+
+@app.route('/analytics/frameworks')
+def analytics_frameworks():
+    from collections import defaultdict
+    all_cvs = CampaignVideo.query.all()
+
+    # Group by framework name
+    fw_data = defaultdict(lambda: {'description': '', 'views': 0, 'likes': 0, 'comments': 0, 'shares': 0, 'saves': 0, 'video_count': 0})
+    for cv in all_cvs:
+        video = cv.video
+        fw_name = video.framework.name if video.framework else 'Unclassified'
+        fw_desc = video.framework.description if video.framework else ''
+        bucket = fw_data[fw_name]
+        bucket['description'] = fw_desc
+        bucket['views'] += cv.views or 0
+        bucket['likes'] += cv.likes or 0
+        bucket['comments'] += cv.comments or 0
+        bucket['shares'] += cv.shares or 0
+        bucket['saves'] += cv.saves or 0
+        bucket['video_count'] += 1
+
+    class FrameworkRow:
+        def __init__(self, name, data):
+            self.name = name
+            self.description = data['description']
+            self.views = data['views']
+            self.likes = data['likes']
+            self.comments = data['comments']
+            self.shares = data['shares']
+            self.saves = data['saves']
+            self.video_count = data['video_count']
+
+    framework_rows = [FrameworkRow(name, data) for name, data in sorted(fw_data.items())]
+    total_views = sum(r.views for r in framework_rows)
+    total_likes = sum(r.likes for r in framework_rows)
+    total_comments = sum(r.comments for r in framework_rows)
+    total_saves = sum(r.saves for r in framework_rows)
+
+    return render_template('analytics_frameworks.html',
+                           framework_rows=framework_rows,
+                           total_views=total_views, total_likes=total_likes,
+                           total_comments=total_comments, total_saves=total_saves,
+                           active_tab='frameworks')
+
+
+@app.route('/analytics/creators')
+def analytics_creators():
+    from collections import defaultdict
+    all_cvs = CampaignVideo.query.all()
+
+    # Group by (creator, platform)
+    cr_data = defaultdict(lambda: {'views': 0, 'likes': 0, 'comments': 0, 'shares': 0, 'saves': 0, 'video_count': 0})
+    for cv in all_cvs:
+        video = cv.video
+        creator = video.creator or 'Unknown'
+        platform = video.platform or 'unknown'
+        bucket = cr_data[(creator, platform)]
+        bucket['views'] += cv.views or 0
+        bucket['likes'] += cv.likes or 0
+        bucket['comments'] += cv.comments or 0
+        bucket['shares'] += cv.shares or 0
+        bucket['saves'] += cv.saves or 0
+        bucket['video_count'] += 1
+
+    class CreatorRow:
+        def __init__(self, key, data):
+            self.creator = key[0]
+            self.platform = key[1]
+            self.views = data['views']
+            self.likes = data['likes']
+            self.comments = data['comments']
+            self.shares = data['shares']
+            self.saves = data['saves']
+            self.video_count = data['video_count']
+
+    creator_rows = [CreatorRow(key, data) for key, data in sorted(cr_data.items())]
+    total_views = sum(r.views for r in creator_rows)
+    total_likes = sum(r.likes for r in creator_rows)
+    total_comments = sum(r.comments for r in creator_rows)
+    total_saves = sum(r.saves for r in creator_rows)
+
+    return render_template('analytics_creators.html',
+                           creator_rows=creator_rows,
+                           total_views=total_views, total_likes=total_likes,
+                           total_comments=total_comments, total_saves=total_saves,
+                           active_tab='creators')
 
 
 @app.route('/campaigns/<int:campaign_id>/add-videos', methods=['POST'])

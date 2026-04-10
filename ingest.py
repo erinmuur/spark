@@ -200,6 +200,18 @@ def fetch_metadata(url):
         or info.get('channel')
         or ''
     )
+    # Fallback: parse "Post by <user>" from title (common for Instagram)
+    if not creator:
+        import re as _re
+        title_match = _re.match(r'(?:Post|Reel|Video) by (.+)', info.get('title', ''))
+        if title_match:
+            creator = title_match.group(1).strip()
+    # Fallback: parse @username from URL
+    if not creator:
+        import re as _re
+        url_match = _re.search(r'(?:tiktok\.com|instagram\.com)/@([^/]+)', url)
+        if url_match:
+            creator = url_match.group(1)
 
     save_count = info.get('digg_count') or info.get('favorite_count')
 
