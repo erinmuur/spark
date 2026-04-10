@@ -488,10 +488,15 @@ def admin_apify_debug():
     try:
         from apify_client import ApifyClient
         client = ApifyClient(api_token)
-        run = client.actor('clockworks/tiktok-scraper').call(run_input={'postURLs': [v.url], 'resultsPerPage': 1}, timeout_secs=60)
+        if v.platform == 'instagram':
+            run = client.actor('apify/instagram-scraper').call(run_input={'directUrls': [v.url], 'resultsLimit': 1, 'resultsType': 'posts'}, timeout_secs=60)
+            share_keys = ['sharesCount', 'reshareCount', 'repostsCount', 'videoSharesCount']
+        else:
+            run = client.actor('clockworks/tiktok-scraper').call(run_input={'postURLs': [v.url], 'resultsPerPage': 1}, timeout_secs=60)
+            share_keys = ['shareCount', 'collectCount']
         items = list(client.dataset(run['defaultDatasetId']).iterate_items())
         item = items[0] if items else {}
-        return jsonify({'status': run.get('status'), 'item_keys': list(item.keys()), 'engagement': {k: item.get(k) for k in ['diggCount', 'commentCount', 'shareCount', 'playCount', 'collectCount', 'savedCount', 'bookmarkCount', 'favoriteCount']}})
+        return jsonify({'platform': v.platform, 'status': run.get('status'), 'item_keys': list(item.keys()), 'share_fields': {k: item.get(k) for k in share_keys}})
     except Exception as e:
         return jsonify({'error': str(e)})
 

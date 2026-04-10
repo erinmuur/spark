@@ -278,7 +278,7 @@ def _fetch_instagram_via_apify(url):
             'view_count': item.get('videoViewCount') or item.get('videoPlayCount'),
             'like_count': item.get('likesCount'),
             'comment_count': item.get('commentsCount'),
-            'share_count': None,
+            'share_count': item.get('sharesCount') or item.get('reshareCount') or item.get('repostsCount'),
             'save_count': None,
             'embed_html': embed_html,
             'raw': json.dumps({
