@@ -11,7 +11,7 @@
 
 <!-- Product Context -->
 <div id="tab-products" class="tab-panel">
-  <p style="color:var(--pico-muted-color); margin:0 0 1.5rem; font-size:0.9rem;">These descriptions inform Claude when generating campaign briefs.</p>
+  <p style="color:var(--text-secondary); margin:0 0 1.5rem; font-size:0.9rem;">These descriptions inform Claude when generating campaign briefs.</p>
   <div class="product-grid">
     {% for product in products %}
     <div class="product-card">
@@ -49,13 +49,13 @@
 
 <!-- Frameworks -->
 <div id="tab-frameworks" class="tab-panel" style="display:none;">
-  <p style="color:var(--pico-muted-color); margin:0 0 1.5rem; font-size:0.9rem;">Claude uses these to classify inspiration videos and generate briefs.</p>
+  <p style="color:var(--text-secondary); margin:0 0 1.5rem; font-size:0.9rem;">Claude uses these to classify inspiration videos and generate briefs.</p>
 
   {% for f in frameworks %}
   <div class="framework-card" id="framework-{{ f.id }}">
     <details>
       <summary>{{ f.name }}</summary>
-      <p style="color:var(--pico-muted-color); margin-top:0.75rem;">{{ f.description }}</p>
+      <p style="color:var(--text-secondary); margin-top:0.75rem;">{{ f.description }}</p>
       <form method="post" action="/frameworks/{{ f.id }}/edit" style="margin-top:1rem;">
         <div class="grid">
           <label>Name<input type="text" name="name" value="{{ f.name }}" required /></label>
@@ -69,8 +69,8 @@
         <button type="submit" class="secondary">Save changes</button>
       </form>
       <form method="post" action="/frameworks/{{ f.id }}/delete" style="margin-top:0.5rem;">
-        <button type="submit" class="outline contrast"
-          onclick="return confirm('Delete this framework?')">Delete</button>
+        <button type="submit" class="outline"
+          onclick="return confirm('Delete this framework?')" style="color:var(--feedback-error); border-color:var(--feedback-error);">Delete</button>
       </form>
     </details>
   </div>
@@ -97,7 +97,7 @@
 .tab-bar {
   display: flex;
   gap: 0.25rem;
-  border-bottom: 2px solid var(--pico-muted-border-color);
+  border-bottom: 2px solid var(--border-subtle);
   margin-bottom: 1.5rem;
 }
 .tab-btn {
@@ -107,16 +107,18 @@
   margin-bottom: -2px;
   padding: 0.5rem 1.25rem;
   cursor: pointer;
-  color: var(--pico-muted-color);
+  color: var(--text-secondary);
   font-size: 0.95rem;
   font-weight: 500;
   border-radius: 0;
   width: auto;
+  height: auto;
 }
-.tab-btn:hover { color: var(--pico-color); }
+.tab-btn:hover { color: var(--text-primary); background: none; transform: none; }
 .tab-btn.active {
-  color: var(--pico-primary);
-  border-bottom-color: var(--pico-primary);
+  color: var(--interactive-default);
+  border-bottom-color: var(--interactive-default);
+  background: none;
 }
 </style>
 

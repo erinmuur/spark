@@ -1,13 +1,13 @@
 <h3 style="margin-top:0;">Create Campaign</h3>
 
-<div style="margin-bottom:1rem; padding:0.75rem; background:var(--pico-card-background-color); border-radius:6px; font-size:0.85rem;">
+<div style="margin-bottom:1rem; padding:0.75rem; background:var(--surface-secondary); border-radius:12px; font-size:0.85rem;">
   <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.25rem;">
     <span class="badge badge-{{ video.platform or 'unknown' }}">{{ video.platform or '?' }}</span>
     {% if video.creator %}<strong>@{{ video.creator }}</strong>{% endif %}
     {% if video.framework %}<span class="framework-tag">{{ video.framework.name }}</span>{% endif %}
   </div>
   {% if video.caption %}
-  <div style="color:var(--pico-muted-color); font-size:0.8rem;">
+  <div style="color:var(--text-secondary); font-size:0.8rem;">
     {{ video.caption[:160] }}{% if video.caption|length > 160 %}…{% endif %}
   </div>
   {% endif %}
@@ -36,6 +36,6 @@
       <span class="htmx-indicator spinner"></span>
       Generate Brief
     </button>
-    <button type="button" class="outline secondary" onclick="closeModal()">Cancel</button>
+    <button type="button" class="outline" onclick="closeModal()">Cancel</button>
   </div>
 </form>
