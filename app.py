@@ -82,13 +82,14 @@ def humannum_filter(n):
 
 
 def _cache_thumbnail(video_id, url):
-    """Download and cache a thumbnail to disk."""
+    """Download and cache a thumbnail to disk. Discards bad/empty responses."""
     import requests as req
     try:
         thumb_dir = os.path.join(_data_dir, 'thumbnails')
         os.makedirs(thumb_dir, exist_ok=True)
         r = req.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0 (compatible)'})
-        if r.status_code == 200:
+        content_type = r.headers.get('content-type', '')
+        if r.status_code == 200 and content_type.startswith('image/') and len(r.content) > 2048:
             with open(os.path.join(thumb_dir, f'{video_id}.jpg'), 'wb') as f:
                 f.write(r.content)
     except Exception:
@@ -502,6 +503,27 @@ def admin_retry_missing_thumbnails():
     for i, v in enumerate(missing):
         threading.Timer(i * 4, lambda vid=v.id: _process_new_video(vid)).start()
     return jsonify({'retrying': count, 'ids': [v.id for v in missing]})
+
+
+@app.route('/admin/purge-bad-thumbnails', methods=['POST'])
+def admin_purge_bad_thumbnails():
+    """Delete cached thumbnails that are too small to be real images, then re-fetch."""
+    thumb_dir = os.path.join(_data_dir, 'thumbnails')
+    purged = []
+    if os.path.isdir(thumb_dir):
+        for fname in os.listdir(thumb_dir):
+            fpath = os.path.join(thumb_dir, fname)
+            if os.path.getsize(fpath) < 2048:
+                os.remove(fpath)
+                try:
+                    vid_id = int(fname.replace('.jpg', ''))
+                    purged.append(vid_id)
+                except ValueError:
+                    pass
+    # Re-trigger full metadata fetch for affected videos
+    for i, vid_id in enumerate(purged):
+        threading.Timer(i * 4, lambda vid=vid_id: _process_new_video(vid)).start()
+    return jsonify({'purged': purged, 'retrying': len(purged)})
 
 
 @app.route('/admin/apify-debug')
