@@ -120,7 +120,7 @@ document.addEventListener('click', function(e) {
   {% for video in videos %}
   {% set raw = video.raw_metadata | fromjson %}
 
-  <div class="video-card inspo-card">
+  <div class="video-card inspo-card" onclick="window.location='/videos/{{ video.id }}'" style="cursor:pointer;">
 
     <!-- Platform embed + hover overlay -->
     <div class="inspo-embed-wrapper {% if video.platform in ['tiktok', 'instagram'] %}thumbnail-wrapper{% endif %}">
