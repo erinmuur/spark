@@ -6,3 +6,4 @@ yt-dlp
 python-dotenv
 requests
 openai-whisper
+apify-client
