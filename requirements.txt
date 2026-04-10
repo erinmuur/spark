@@ -7,5 +7,4 @@ python-dotenv
 requests
 openai-whisper
 apify-client
-modal
-uv
+modal==1.4.1
