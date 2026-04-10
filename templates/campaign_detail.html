@@ -151,12 +151,13 @@
       {% endif %}
 
       {# Inline metrics #}
-      {% if cv.views or cv.likes or cv.comments %}
+      {% if cv.views or cv.likes or cv.comments or cv.shares or cv.saves %}
       <div class="cd-card-stats">
         {% if cv.views %}<span title="Views"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5S1 8 1 8z"/><circle cx="8" cy="8" r="2"/></svg> {{ '{:,}'.format(cv.views) }}</span>{% endif %}
         {% if cv.likes %}<span title="Likes"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 14s-5.5-3.5-5.5-7A3 3 0 0 1 8 4.5 3 3 0 0 1 13.5 7C13.5 10.5 8 14 8 14z"/></svg> {{ '{:,}'.format(cv.likes) }}</span>{% endif %}
         {% if cv.comments %}<span title="Comments"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12v8H5l-3 3V3z"/></svg> {{ '{:,}'.format(cv.comments) }}</span>{% endif %}
         {% if cv.shares %}<span title="Shares"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 9v5m8-8l-4-4-4 4m4-4v9"/></svg> {{ '{:,}'.format(cv.shares) }}</span>{% endif %}
+        {% if cv.saves %}<span title="Saves"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h10v13l-5-3-5 3V2z"/></svg> {{ '{:,}'.format(cv.saves) }}</span>{% endif %}
       </div>
       {% endif %}
 
