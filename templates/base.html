@@ -198,6 +198,16 @@
     button.secondary:hover, .btn-secondary:hover {
       background: var(--border-subtle);
     }
+    /* Secondary: orange outline in light mode so it's visible */
+    :root button.secondary, :root .btn-secondary {
+      background: transparent;
+      color: var(--interactive-default);
+      border: 1px solid var(--interactive-default);
+    }
+    :root button.secondary:hover, :root .btn-secondary:hover {
+      background: rgba(255, 105, 0, 0.07);
+      transform: translateY(-1px);
+    }
     /* Outline / Ghost */
     button.outline, .btn-outline {
       background: transparent;

@@ -201,8 +201,8 @@
 .fav-btn-detail.active { color: var(--feedback-error) !important; border-color: var(--feedback-error) !important; }
 .delete-btn:hover { color: var(--feedback-error) !important; border-color: var(--feedback-error) !important; }
 .detail-action-btn:hover { border-color: var(--pico-color); color: #fff; }
-/* Ensure secondary buttons also have white text */
-.detail-info button.secondary { color: #fff !important; }
+/* Secondary buttons: orange in light mode, white text in dark mode */
+[data-theme="dark"] .detail-info button.secondary { color: #fff !important; }
 .fav-btn-detail.active { color: #ef4444 !important; border-color: #ef4444 !important; }
 .delete-btn:hover { color: #ef4444 !important; border-color: #ef4444 !important; }
 

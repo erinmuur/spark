@@ -94,11 +94,19 @@ def _fetch_tiktok_via_apify(url):
         _logging.getLogger(__name__).info(f'Apify TikTok item keys: {list(item.keys())}')
         _logging.getLogger(__name__).info(f'Apify TikTok saves fields: collectCount={item.get("collectCount")!r} savedCount={item.get("savedCount")!r} favoriteCount={item.get("favoriteCount")!r} bookmarkCount={item.get("bookmarkCount")!r}')
         author_meta = item.get('authorMeta', {}) if isinstance(item.get('authorMeta'), dict) else {}
+        video_meta = item.get('videoMeta', {}) if isinstance(item.get('videoMeta'), dict) else {}
+        covers = item.get('covers')
+        thumbnail_url = (
+            video_meta.get('coverUrl')
+            or video_meta.get('dynamicCover')
+            or (covers[0] if isinstance(covers, list) and covers else None)
+            or item.get('thumbnail_url', '')
+        ) or ''
         return {
             'title': (item.get('text') or '')[:120],
             'creator': author_meta.get('name', ''),
             'caption': item.get('text', ''),
-            'thumbnail_url': '',
+            'thumbnail_url': thumbnail_url,
             'duration': (item.get('videoMeta', {}) or {}).get('duration', 0),
             'platform': 'tiktok',
             'view_count': item.get('playCount'),

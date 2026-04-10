@@ -490,6 +490,20 @@ def admin_retry_failed_videos():
     return jsonify({'retrying': count, 'ids': [v.id for v in failed]})
 
 
+@app.route('/admin/retry-missing-thumbnails', methods=['POST'])
+def admin_retry_missing_thumbnails():
+    """Re-trigger metadata fetch for videos that have data but no thumbnail."""
+    from sqlalchemy import or_
+    missing = Video.query.filter(
+        Video.creator.isnot(None),
+        or_(Video.thumbnail_url.is_(None), Video.thumbnail_url == ''),
+    ).all()
+    count = len(missing)
+    for i, v in enumerate(missing):
+        threading.Timer(i * 4, lambda vid=v.id: _process_new_video(vid)).start()
+    return jsonify({'retrying': count, 'ids': [v.id for v in missing]})
+
+
 @app.route('/admin/apify-debug')
 def admin_apify_debug():
     """Temp: run Apify scraper on first video and return full raw item."""
