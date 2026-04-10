@@ -577,6 +577,17 @@ def admin_apify_debug():
         return jsonify({'error': str(e)})
 
 
+@app.route('/admin/clear-tribe-errors', methods=['POST'])
+def admin_clear_tribe_errors():
+    """Reset all failed/errored TRIBE statuses back to idle."""
+    videos = Video.query.filter(Video.tribe_status.like('error:%')).all()
+    count = len(videos)
+    for v in videos:
+        v.tribe_status = None
+    db.session.commit()
+    return jsonify({'cleared': count})
+
+
 @app.route('/admin/delete-all-videos', methods=['POST'])
 def admin_delete_all_videos():
     """One-shot: delete all videos and their thumbnails."""
