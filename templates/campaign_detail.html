@@ -970,7 +970,7 @@ function sendMessage() {
               finish();
               return;
             }
-            fullText += data;
+            fullText += data.replace(/\\n/g, '\n');
             assistBubble.innerHTML = renderMd(fullText);
             scrollChat();
           }

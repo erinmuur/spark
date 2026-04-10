@@ -974,7 +974,8 @@ def campaign_chat(id):
         'You are a campaign analyst for a short-form video marketing team. '
         'Answer questions about this campaign using the data below. '
         'Write in plain prose — no markdown, no bullet points, no headers, no asterisks. '
-        'Use blank lines to separate paragraphs. '
+        'Structure your response as short paragraphs of 2–4 sentences each, separated by blank lines. '
+        'Each paragraph should cover a single creator or idea — never cram multiple creators into one paragraph. '
         'Every time you mention a video or its stats, you MUST identify the creator '
         'by their @handle (e.g. @creatorname). Never refer to a video without naming the creator. '
         'When asked about engagement relative to audience size or follower counts, use engagement '
@@ -1022,7 +1023,9 @@ def campaign_chat(id):
     def generate():
         try:
             for chunk in ai.chat_campaign_stream(system_prompt, user_message, history):
-                yield f"data: {chunk}\n\n"
+                # Encode newlines so SSE framing isn't broken; client decodes them
+                safe = chunk.replace('\n', '\\n')
+                yield f"data: {safe}\n\n"
         except Exception as e:
             yield f"data: [ERROR] {e}\n\n"
         yield "data: [DONE]\n\n"
