@@ -53,7 +53,8 @@ def run_inference(video_id):
         logger.info(f'TRIBE analysis complete for video {video_id}')
 
     except Exception as e:
-        logger.error(f'TRIBE inference failed for video {video_id}: {e}')
+        import traceback
+        logger.error(f'TRIBE inference failed for video {video_id}: {e}\n{traceback.format_exc()}')
         try:
             video.tribe_status = f'error: {str(e)[:200]}'
             db.session.commit()
