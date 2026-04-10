@@ -42,6 +42,15 @@ with app.app_context():
         if 'follower_count' not in _video_cols:
             _conn.execute(text('ALTER TABLE video ADD COLUMN follower_count INTEGER'))
             _conn.commit()
+        if 'slack_user' not in _video_cols:
+            _conn.execute(text('ALTER TABLE video ADD COLUMN slack_user VARCHAR(200)'))
+            _conn.commit()
+        if 'slack_channel' not in _video_cols:
+            _conn.execute(text('ALTER TABLE video ADD COLUMN slack_channel VARCHAR(100)'))
+            _conn.commit()
+        if 'slack_ts' not in _video_cols:
+            _conn.execute(text('ALTER TABLE video ADD COLUMN slack_ts VARCHAR(50)'))
+            _conn.commit()
 
 
 @app.template_filter('dark_embed')
