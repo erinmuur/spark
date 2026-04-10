@@ -172,9 +172,13 @@ def fetch_metadata(url):
             if fallback:
                 return fallback
         if is_tiktok:
-            fallback = _fetch_tiktok_oembed(url)
-            if fallback:
-                return fallback
+            # Try Apify first (has full stats), then oEmbed (thumbnail only)
+            apify_fallback = _fetch_tiktok_via_apify(url)
+            if apify_fallback:
+                return apify_fallback
+            oembed_fallback = _fetch_tiktok_oembed(url)
+            if oembed_fallback:
+                return oembed_fallback
         return {'error': last_err or 'fetch failed'}
 
     if info is None:
