@@ -544,26 +544,34 @@ def admin_retry_missing_thumbnails():
 
 @app.route('/admin/backfill-followers', methods=['POST'])
 def admin_backfill_followers():
-    """Re-fetch Apify data for TikTok videos missing follower counts."""
-    from ingest import _fetch_tiktok_via_apify, _fetch_instagram_via_apify
-    videos = Video.query.filter(
+    """Re-fetch Apify data for TikTok/Instagram videos missing follower counts (async)."""
+    def _do_backfill(ids):
+        from ingest import _fetch_tiktok_via_apify, _fetch_instagram_via_apify
+        with app.app_context():
+            updated = 0
+            for vid_id in ids:
+                v = Video.query.get(vid_id)
+                if not v:
+                    continue
+                try:
+                    if v.platform == 'tiktok':
+                        data = _fetch_tiktok_via_apify(v.url)
+                    else:
+                        data = _fetch_instagram_via_apify(v.url)
+                    if data and data.get('follower_count') is not None:
+                        v.follower_count = data['follower_count']
+                        db.session.commit()
+                        updated += 1
+                except Exception:
+                    pass
+            logger.info(f'Follower backfill complete: {updated}/{len(ids)} updated')
+
+    ids = [row.id for row in Video.query.filter(
         Video.follower_count.is_(None),
         Video.platform.in_(['tiktok', 'instagram']),
-    ).all()
-    updated = 0
-    for v in videos:
-        try:
-            if v.platform == 'tiktok':
-                data = _fetch_tiktok_via_apify(v.url)
-            else:
-                data = _fetch_instagram_via_apify(v.url)
-            if data and data.get('follower_count') is not None:
-                v.follower_count = data['follower_count']
-                updated += 1
-        except Exception:
-            pass
-    db.session.commit()
-    return jsonify({'checked': len(videos), 'updated': updated})
+    ).with_entities(Video.id).all()]
+    threading.Thread(target=_do_backfill, args=(ids,), daemon=True).start()
+    return jsonify({'queued': len(ids), 'message': 'Backfill running in background'})
 
 
 @app.route('/admin/fix-thumbnail/<int:video_id>', methods=['POST'])
