@@ -28,9 +28,10 @@ class Video(db.Model):
     transcript = db.Column(db.Text)        # Whisper speech-to-text
     embed_html = db.Column(db.Text)        # oEmbed HTML from platform
     raw_metadata = db.Column(db.Text)      # JSON from yt-dlp
-    slack_user = db.Column(db.String(100))
+    slack_user = db.Column(db.String(200))   # display name resolved at ingest time
     slack_channel = db.Column(db.String(100))
     slack_ts = db.Column(db.String(50))
+    slack_message = db.Column(db.Text)       # message text with URL stripped out
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     favorited = db.Column(db.Boolean, default=False)

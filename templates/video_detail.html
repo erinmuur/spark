@@ -89,6 +89,19 @@
       <p style="margin:0 0 0.5rem; font-weight:600;">@{{ video.creator }}</p>
     {% endif %}
 
+    <!-- Shared via Slack -->
+    {% if video.slack_user %}
+    <section style="margin-bottom:1.5rem; padding:0.75rem; background:var(--surface-secondary); border-radius:12px;">
+      <p style="margin:0 0 {% if video.slack_message %}0.4rem{% else %}0{% endif %}; font-size:0.82rem; color:var(--text-tertiary);">
+        Shared by <strong style="color:var(--text-primary);">{{ video.slack_user }}</strong>
+        {% if video.created_at %}&nbsp;· {{ video.created_at.strftime('%-d %b') }}{% endif %}
+      </p>
+      {% if video.slack_message %}
+      <p style="margin:0; font-size:0.85rem; line-height:1.5; color:var(--text-secondary);">{{ video.slack_message }}</p>
+      {% endif %}
+    </section>
+    {% endif %}
+
     <!-- Framework analysis -->
     {% if video.analysis %}
     <section style="margin-bottom:1.5rem;">

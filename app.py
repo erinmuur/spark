@@ -31,6 +31,14 @@ db.init_app(app)
 # Initialize DB on startup (runs under both gunicorn and flask dev server)
 with app.app_context():
     db.create_all()
+    # Migrations for columns added after initial deploy
+    from sqlalchemy import text, inspect as sa_inspect
+    _inspector = sa_inspect(db.engine)
+    _video_cols = [c['name'] for c in _inspector.get_columns('video')]
+    with db.engine.connect() as _conn:
+        if 'slack_message' not in _video_cols:
+            _conn.execute(text('ALTER TABLE video ADD COLUMN slack_message TEXT'))
+            _conn.commit()
 
 
 @app.template_filter('dark_embed')

@@ -21,8 +21,19 @@ slack_app = App(token=os.environ['SLACK_BOT_TOKEN'])
 WATCHED_CHANNEL = os.environ.get('SLACK_CHANNEL_ID', '')
 
 
-def process_video(url, channel, ts, user, client):
+def _resolve_slack_user(client, user_id):
+    """Return display name for a Slack user ID, falling back to the raw ID."""
+    try:
+        info = client.users_info(user=user_id)
+        profile = info.get('user', {}).get('profile', {})
+        return profile.get('display_name') or profile.get('real_name') or user_id
+    except Exception:
+        return user_id
+
+
+def process_video(url, channel, ts, user, text, client):
     """Fetch metadata, classify, and reply in thread. Runs in a background thread."""
+    import re
     with flask_app.app_context():
         existing = Video.query.filter_by(url=url).first()
         if existing:
@@ -33,13 +44,18 @@ def process_video(url, channel, ts, user, client):
             )
             return
 
+        # Resolve user display name and extract any notes (message text minus URLs)
+        display_name = _resolve_slack_user(client, user)
+        notes = re.sub(r'https?://\S+', '', text).strip()
+
         # Save immediately so duplicates from other messages are caught
         video = Video(
             url=url,
             platform=detect_platform(url),
-            slack_user=user,
+            slack_user=display_name,
             slack_channel=channel,
             slack_ts=ts,
+            slack_message=notes or None,
         )
         db.session.add(video)
         db.session.commit()
@@ -99,7 +115,7 @@ def handle_message(body, client):
     for url in urls:
         t = threading.Thread(
             target=process_video,
-            args=(url, channel, ts, user, client),
+            args=(url, channel, ts, user, text, client),
             daemon=True
         )
         t.start()
