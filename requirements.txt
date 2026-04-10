@@ -7,5 +7,4 @@ python-dotenv
 requests
 openai-whisper
 apify-client
-modal==1.4.1
 gunicorn==23.0.0

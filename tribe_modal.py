@@ -42,7 +42,9 @@ model_volume = modal.Volume.from_name("spark-tribe-models", create_if_missing=Tr
     secrets=[modal.Secret.from_name("huggingface")],
     volumes={"/model-cache": model_volume},
 )
-def run_tribe_inference(video_url: str) -> dict:
+@modal.fastapi_endpoint(method="POST")
+def run_tribe_inference(item: dict) -> dict:
+    video_url: str = item["url"]
     """
     Download video, run TRIBE v2 inference, extract peak/valley frames.
 
