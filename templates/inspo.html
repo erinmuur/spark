@@ -120,7 +120,7 @@ document.addEventListener('click', function(e) {
   {% for video in videos %}
   {% set raw = video.raw_metadata | fromjson %}
 
-  <div class="video-card inspo-card">
+  <div class="video-card inspo-card" onclick="window.location='/videos/{{ video.id }}'" style="cursor:pointer;">
 
     <!-- Platform embed + hover overlay -->
     <div class="inspo-embed-wrapper {% if video.platform in ['tiktok', 'instagram'] %}thumbnail-wrapper{% endif %}">
@@ -252,7 +252,7 @@ document.addEventListener('click', function(e) {
   z-index: 9999;
   cursor: pointer;
 }
-.embed-overlay.active {
+.inspo-embed-wrapper:hover .embed-overlay {
   background: rgba(0, 0, 0, 0.45);
 }
 .embed-actions {
@@ -262,7 +262,7 @@ document.addEventListener('click', function(e) {
   transition: opacity 0.2s;
   pointer-events: none;
 }
-.embed-overlay.active .embed-actions {
+.inspo-embed-wrapper:hover .embed-actions {
   opacity: 1;
   pointer-events: auto;
 }
@@ -379,22 +379,6 @@ document.addEventListener('click', function(e) {
 </style>
 
 
-<script>
-document.addEventListener('mousemove', function(e) {
-  document.querySelectorAll('.inspo-embed-wrapper').forEach(function(wrapper) {
-    var rect = wrapper.getBoundingClientRect();
-    var inside = e.clientX >= rect.left && e.clientX <= rect.right &&
-                 e.clientY >= rect.top  && e.clientY <= rect.bottom;
-    var overlay = wrapper.querySelector('.embed-overlay');
-    var actions = wrapper.querySelector('.embed-actions');
-    overlay.style.background = inside ? 'rgba(0,0,0,0.45)' : 'transparent';
-    if (actions) {
-      actions.style.opacity = inside ? '1' : '0';
-      actions.style.pointerEvents = inside ? 'auto' : 'none';
-    }
-  });
-});
-</script>
 
 {% endif %}
 {% endblock %}
