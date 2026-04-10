@@ -30,7 +30,8 @@ def run_inference(video_id):
 
         # Run inference on Modal GPU — blocks until complete (~2 min on T4)
         logger.info(f'Dispatching TRIBE inference to Modal for video {video_id}: {video.url}')
-        from tribe_modal import run_tribe_inference
+        import modal
+        run_tribe_inference = modal.Function.lookup("spark-tribe", "run_tribe_inference")
         result = run_tribe_inference.remote(video.url)
 
         scores = result['scores']
