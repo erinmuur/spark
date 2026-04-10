@@ -877,11 +877,13 @@ function renderMd(text) {
     .replace(/^[-•]\s+/gm, '');
   // Bold @username mentions
   t = t.replace(/(@[\w.]+)/g, '<strong>$1</strong>');
-  // Double newline → paragraph break; single newline → space
+  // Split into paragraphs on double newlines; join single newlines with a space
+  // but keep them so lines starting with a bolded name don't get silently merged
   var paras = t.split(/\n{2,}/);
   return paras.map(function(p) {
-    return '<p style="margin:0 0 0.75rem;">' + p.replace(/\n/g, ' ').trim() + '</p>';
-  }).join('');
+    var lines = p.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+    return '<p style="margin:0 0 0.75rem;">' + lines.join(' ') + '</p>';
+  }).filter(function(p) { return p !== '<p style="margin:0 0 0.75rem;"></p>'; }).join('');
 }
 
 function scrollChat() {

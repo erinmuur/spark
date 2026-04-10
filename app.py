@@ -933,7 +933,8 @@ def campaign_chat(id):
         'Answer questions about this campaign using the data below. '
         'Write in plain prose — no markdown, no bullet points, no headers, no asterisks. '
         'Use blank lines to separate paragraphs. '
-        'When mentioning a creator, write their handle as @username.',
+        'Every time you mention a video or its stats, you MUST identify the creator '
+        'by their @handle (e.g. @creatorname). Never refer to a video without naming the creator.',
         '',
         f'Campaign: {campaign.display_name}',
         f'Description: {campaign.description or "N/A"}',
