@@ -128,7 +128,7 @@
         <img src="/thumbnails/{{ cv.video.id }}" alt="{{ cv.video.title or '' }}" loading="lazy" />
       {% else %}
         <div class="cd-card-thumb-ph">
-          <svg width="20" height="20" viewBox="0 0 16 16" fill="rgba(255,255,255,0.15)"><polygon points="6,3 13,8 6,13"/></svg>
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="var(--text-tertiary)"><polygon points="6,3 13,8 6,13"/></svg>
         </div>
       {% endif %}
       {# Overlay link #}
@@ -224,18 +224,18 @@
 
     {% if campaign.video %}
     <div>
-      <div style="border:1px solid rgba(255,255,255,0.06); border-radius:10px; overflow:hidden; margin-bottom:1.25rem;">
+      <div style="border:1px solid var(--panel-border); border-radius:var(--radius-card); overflow:hidden; margin-bottom:1.25rem;">
         {% if campaign.video.thumbnail_url %}
           <img src="/thumbnails/{{ campaign.video.id }}" style="width:100%; display:block;"
                onerror="this.style.display='none';" />
         {% endif %}
         <div style="padding:0.75rem;">
-          <div style="font-size:0.75rem; color:rgba(255,255,255,0.35); margin-bottom:0.25rem;">Inspiration video</div>
+          <div style="font-size:0.75rem; color:var(--text-tertiary); margin-bottom:0.25rem;">Inspiration video</div>
           {% if campaign.video.creator %}
             <div style="font-weight:600; font-size:0.9rem;">@{{ campaign.video.creator }}</div>
           {% endif %}
           {% if campaign.video.caption %}
-            <div style="font-size:0.8rem; margin-top:0.25rem; color:rgba(255,255,255,0.4);">
+            <div style="font-size:0.8rem; margin-top:0.25rem; color:var(--text-tertiary);">
               {{ campaign.video.caption[:200] }}{% if campaign.video.caption|length > 200 %}...{% endif %}
             </div>
           {% endif %}
@@ -253,10 +253,10 @@
             <textarea name="context_notes" rows="4"
                       placeholder="e.g. Focus on the highlights feature, target power readers...">{{ campaign.context_notes or '' }}</textarea>
           </label>
-          <small style="color:rgba(255,255,255,0.35); font-size:0.75rem; display:block; margin-bottom:0.75rem;">
+          <small style="color:var(--text-tertiary); font-size:0.75rem; display:block; margin-bottom:0.75rem;">
             This will replace the current brief.
           </small>
-          <button type="submit" class="contrast outline">Regenerate &#8635;</button>
+          <button type="submit" class="outline">Regenerate &#8635;</button>
         </form>
       </details>
     </div>
@@ -273,12 +273,12 @@
   gap: 4px;
   font-size: 0.78rem;
   font-weight: 500;
-  color: rgba(255,255,255,0.35);
+  color: var(--text-tertiary);
   text-decoration: none;
   margin-bottom: 1rem;
   transition: color 0.15s;
 }
-.cd-back:hover { color: rgba(255,255,255,0.7); }
+.cd-back:hover { color: var(--text-primary); }
 
 /* ── Header ── */
 .cd-header {
@@ -299,17 +299,17 @@
   align-items: center;
   gap: 6px;
   font-size: 0.78rem;
-  color: rgba(255,255,255,0.35);
+  color: var(--text-tertiary);
 }
 .cd-dot {
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.2);
+  background: var(--text-tertiary);
 }
 .cd-desc {
   font-size: 0.82rem;
-  color: rgba(255,255,255,0.4);
+  color: var(--text-secondary);
   margin-top: 0.5rem;
   max-width: 600px;
   line-height: 1.5;
@@ -324,12 +324,12 @@
   width: auto;
   margin: 0;
   font-size: 0.78rem;
-  padding: 4px 8px;
+  padding: 4px 28px 4px 10px;
   height: 28px;
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 6px;
-  color: rgba(255,255,255,0.5);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-button);
+  color: var(--text-secondary);
 }
 
 /* ── Stat cards ── */
@@ -341,22 +341,23 @@
 }
 @media (max-width: 720px) { .cd-stats { grid-template-columns: repeat(2, 1fr); } }
 .cd-stat {
-  background: #0c0c0d;
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-card);
   padding: 14px 18px;
+  box-shadow: var(--shadow-100);
 }
 .cd-stat-val {
   font-size: 1.5rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #fafafa;
+  color: var(--text-primary);
   line-height: 1.1;
   margin-bottom: 3px;
 }
 .cd-stat-lbl {
   font-size: 0.68rem;
-  color: rgba(255,255,255,0.35);
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 500;
@@ -374,7 +375,6 @@
 .cd-section-title {
   margin: 0;
   font-size: 1rem;
-  font-family: 'Inter', sans-serif;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -389,15 +389,17 @@
 
 /* ── Video card ── */
 .cd-card {
-  background: #0c0c0d;
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 10px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-card);
   overflow: hidden;
-  transition: border-color 0.15s, transform 0.15s;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  box-shadow: var(--shadow-100);
 }
 .cd-card:hover {
-  border-color: rgba(255,255,255,0.1);
+  border-color: var(--border-default);
   transform: translateY(-1px);
+  box-shadow: var(--shadow-200);
 }
 
 /* Thumbnail */
@@ -414,7 +416,7 @@
 .cd-card-thumb-ph {
   width: 100%;
   aspect-ratio: 9/16;
-  background: #111;
+  background: var(--surface-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -425,8 +427,8 @@
   right: 8px;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
-  background: rgba(0,0,0,0.6);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.5);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -437,7 +439,7 @@
   text-decoration: none;
 }
 .cd-card:hover .cd-card-overlay { opacity: 1; }
-.cd-card-overlay:hover { color: #fff; background: rgba(0,0,0,0.8); }
+.cd-card-overlay:hover { color: #fff; background: rgba(0,0,0,0.7); }
 
 /* Card body */
 .cd-card-body {
@@ -451,13 +453,13 @@
 }
 .cd-card-creator {
   font-size: 0.78rem;
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary);
 }
 .cd-card-title {
   font-size: 0.8rem;
   font-weight: 500;
   line-height: 1.4;
-  color: rgba(255,255,255,0.8);
+  color: var(--text-primary);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -472,7 +474,7 @@
   gap: 10px;
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
-  color: rgba(255,255,255,0.4);
+  color: var(--text-tertiary);
   margin-bottom: 4px;
 }
 .cd-card-stats span {
@@ -485,12 +487,12 @@
 /* Metrics toggle */
 .cd-metrics-details {
   margin-top: 8px;
-  border-top: 1px solid rgba(255,255,255,0.04);
+  border-top: 1px solid var(--border-subtle);
   padding-top: 8px;
 }
 .cd-metrics-toggle {
   font-size: 0.72rem;
-  color: rgba(255,255,255,0.3);
+  color: var(--text-tertiary);
   cursor: pointer;
   list-style: none;
   transition: color 0.15s;
@@ -503,7 +505,7 @@
 details[open] .cd-metrics-toggle::before {
   content: '- ';
 }
-.cd-metrics-toggle:hover { color: rgba(255,255,255,0.6); }
+.cd-metrics-toggle:hover { color: var(--text-primary); }
 .cd-metrics-form {
   margin-top: 8px;
 }
@@ -515,7 +517,7 @@ details[open] .cd-metrics-toggle::before {
 }
 .cd-metrics-row label {
   font-size: 0.68rem;
-  color: rgba(255,255,255,0.4);
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -523,26 +525,29 @@ details[open] .cd-metrics-toggle::before {
   font-size: 0.78rem;
   padding: 4px 8px;
   margin-top: 2px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 4px;
+  height: 32px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
 }
 .cd-save-btn {
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.6);
-  padding: 4px 12px;
-  border-radius: 5px;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  padding: 4px 14px;
+  border-radius: var(--radius-button);
   font-size: 0.72rem;
   font-weight: 500;
   cursor: pointer;
   margin: 0;
+  height: 30px;
   transition: all 0.15s;
 }
 .cd-save-btn:hover {
-  background: rgba(255,255,255,0.05);
-  color: #fff;
-  border-color: rgba(255,255,255,0.2);
+  background: var(--surface-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+  transform: none;
 }
 
 /* ── Sort dropdown ── */
@@ -550,41 +555,42 @@ details[open] .cd-metrics-toggle::before {
   display: flex;
   align-items: center;
   gap: 5px;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 6px;
-  background: transparent;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-button);
+  background: var(--surface-elevated);
   cursor: pointer;
-  color: rgba(255,255,255,0.4);
+  color: var(--text-secondary);
   font-size: 0.75rem;
   font-weight: 500;
   margin: 0;
   transition: all 0.15s;
 }
 .cd-sort-btn:hover {
-  border-color: rgba(255,255,255,0.15);
-  color: rgba(255,255,255,0.7);
+  border-color: var(--interactive-default);
+  color: var(--text-primary);
+  transform: none;
 }
 .cd-sort-menu {
   display: none;
   position: absolute;
   right: 0;
   top: calc(100% + 4px);
-  background: #0c0c0d;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-card);
   padding: 6px;
   min-width: 170px;
   z-index: 10000;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  box-shadow: var(--shadow-200);
 }
 .cd-sort-menu.open { display: block; }
 .cd-sort-group {
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.25);
+  color: var(--text-tertiary);
   padding: 4px 8px 3px;
 }
 .cd-sort-opt {
@@ -592,15 +598,15 @@ details[open] .cd-metrics-toggle::before {
   align-items: center;
   gap: 6px;
   padding: 5px 8px;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 0.78rem;
   text-decoration: none;
-  color: rgba(255,255,255,0.6);
+  color: var(--text-primary);
   cursor: pointer;
   transition: background 0.1s;
 }
-.cd-sort-opt:hover { background: rgba(255,255,255,0.04); color: #fff; }
-.cd-sort-opt.active { color: var(--spark-orange); font-weight: 500; }
+.cd-sort-opt:hover { background: var(--surface-tertiary); }
+.cd-sort-opt.active { color: var(--interactive-default); font-weight: 500; }
 .cd-sort-chk { width: 14px; font-size: 0.72rem; text-align: center; }
 
 /* ── Status badges (shared with campaigns.html) ── */
@@ -608,16 +614,20 @@ details[open] .cd-metrics-toggle::before {
   display: inline-flex;
   align-items: center;
   height: 20px;
-  padding: 0 7px;
-  border-radius: 4px;
+  padding: 0 8px;
+  border-radius: 999px;
   font-size: 0.68rem;
   font-weight: 500;
   white-space: nowrap;
 }
-.camp-status--drafting { background: rgba(251,191,36,0.10); color: #fbbf24; }
-.camp-status--pitching { background: rgba(59,130,246,0.10); color: #60a5fa; }
-.camp-status--assigned { background: rgba(139,92,246,0.10); color: #a78bfa; }
-.camp-status--complete { background: rgba(16,185,129,0.10); color: #34d399; }
+.camp-status--drafting { background: rgba(251,191,36,0.12); color: #d97706; }
+.camp-status--pitching { background: rgba(59,130,246,0.12); color: #2563eb; }
+.camp-status--assigned { background: rgba(139,92,246,0.12); color: #7c3aed; }
+.camp-status--complete { background: rgba(16,185,129,0.12); color: #059669; }
+[data-theme="dark"] .camp-status--drafting { color: #fbbf24; }
+[data-theme="dark"] .camp-status--pitching { color: #60a5fa; }
+[data-theme="dark"] .camp-status--assigned { color: #a78bfa; }
+[data-theme="dark"] .camp-status--complete { color: #34d399; }
 
 /* ── Add videos ── */
 .cd-add-videos {
@@ -629,7 +639,7 @@ details[open] .cd-metrics-toggle::before {
   gap: 6px;
   font-size: 0.78rem;
   font-weight: 500;
-  color: var(--spark-orange);
+  color: var(--interactive-default);
   cursor: pointer;
   list-style: none;
   transition: opacity 0.15s;
@@ -638,25 +648,21 @@ details[open] .cd-metrics-toggle::before {
 .cd-add-btn:hover { opacity: 0.8; }
 .cd-add-form {
   margin-top: 10px;
-  background: #0c0c0d;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-card);
   padding: 14px 16px;
   max-width: 520px;
+  box-shadow: var(--shadow-100);
 }
 .cd-add-label {
   font-size: 0.75rem;
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary);
   font-weight: 500;
 }
 .cd-add-label textarea {
   margin-top: 6px;
   font-size: 0.82rem;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 6px;
-  padding: 10px;
-  resize: vertical;
 }
 .cd-add-actions {
   display: flex;
@@ -664,38 +670,41 @@ details[open] .cd-metrics-toggle::before {
   margin-top: 8px;
 }
 .cd-add-submit {
-  background: var(--spark-orange);
+  background: var(--interactive-default);
   color: #fff;
   border: none;
-  padding: 6px 14px;
-  border-radius: 6px;
+  padding: 6px 16px;
+  border-radius: var(--radius-button);
   font-size: 0.78rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   margin: 0;
+  height: 34px;
   transition: background 0.15s;
 }
-.cd-add-submit:hover { background: #fb923c; }
+.cd-add-submit:hover { background: var(--interactive-hover); }
 .cd-add-cancel {
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.5);
-  padding: 6px 14px;
-  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  padding: 6px 16px;
+  border-radius: var(--radius-button);
   font-size: 0.78rem;
   cursor: pointer;
   margin: 0;
+  height: 34px;
   transition: all 0.15s;
 }
 .cd-add-cancel:hover {
-  color: rgba(255,255,255,0.8);
-  border-color: rgba(255,255,255,0.2);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+  transform: none;
 }
 
 /* ── Legacy brief ── */
 .cd-legacy-divider {
   margin-top: 2rem;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid var(--border-subtle);
   padding-top: 2rem;
 }
 </style>

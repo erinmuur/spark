@@ -3,7 +3,7 @@
 
 {% block content %}
 <div style="margin-bottom:1.5rem;">
-  <a href="/" style="font-size:0.85rem; color:var(--pico-muted-color); text-decoration:none;">← Back to Inspo</a>
+  <a href="/" style="font-size:0.85rem; color:var(--text-tertiary); text-decoration:none;">← Back to Inspo</a>
 </div>
 
 <div class="detail-layout">
@@ -21,7 +21,7 @@
       </blockquote>
       <script async src="https://www.instagram.com/embed.js"></script>
     {% else %}
-      <div style="padding:2rem; text-align:center; background:#111; border-radius:8px;">
+      <div style="padding:2rem; text-align:center; background:var(--surface-tertiary); border-radius:var(--radius-card);">
         <a href="{{ video.url }}" target="_blank" rel="noopener">View on {{ video.platform | title }} ↗</a>
       </div>
     {% endif %}
@@ -49,8 +49,8 @@
       {% if video.video_format %}
         <span class="format-tag">{{ video.video_format }}</span>
       {% endif %}
-      {% if video.favorited %}<span style="color:#ef4444;">♥</span>{% endif %}
-      <span style="font-size:0.75rem; color:var(--pico-muted-color); margin-left:auto;">
+      {% if video.favorited %}<span style="color:var(--feedback-error);">♥</span>{% endif %}
+      <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:auto;">
         Added {{ video.created_at.strftime('%b %d, %Y') }}
       </span>
     </div>
@@ -62,7 +62,7 @@
     <!-- Framework analysis -->
     {% if video.analysis %}
     <section style="margin-bottom:1.5rem;">
-      <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--pico-muted-color); margin-bottom:0.5rem;">Framework Analysis</h4>
+      <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-tertiary); margin-bottom:0.5rem;">Framework Analysis</h4>
       <p style="margin:0; line-height:1.6;">{{ video.analysis }}</p>
     </section>
     {% endif %}
@@ -70,17 +70,17 @@
     <!-- Transcript -->
     {% if video.transcript %}
     <section style="margin-bottom:1.5rem;">
-      <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--pico-muted-color); margin-bottom:0.5rem;">Transcript</h4>
-      <p style="margin:0; font-size:0.85rem; line-height:1.6; color:var(--pico-muted-color);">{{ video.transcript }}</p>
+      <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-tertiary); margin-bottom:0.5rem;">Transcript</h4>
+      <p style="margin:0; font-size:0.85rem; line-height:1.6; color:var(--text-secondary);">{{ video.transcript }}</p>
     </section>
     {% endif %}
 
     <!-- Campaigns from this video -->
     {% if video.campaigns %}
     <section style="margin-bottom:1.5rem;">
-      <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--pico-muted-color); margin-bottom:0.5rem;">Campaigns</h4>
+      <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-tertiary); margin-bottom:0.5rem;">Campaigns</h4>
       {% for c in video.campaigns %}
-        <a href="/campaigns/{{ c.id }}" style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; border:1px solid var(--pico-muted-border-color); border-radius:6px; margin-bottom:0.4rem; text-decoration:none; color:inherit; font-size:0.85rem;">
+        <a href="/campaigns/{{ c.id }}" style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; border:1px solid var(--border-default); border-radius:12px; margin-bottom:0.4rem; text-decoration:none; color:inherit; font-size:0.85rem;">
           <span class="badge status-{{ c.status.lower() }}">{{ c.status }}</span>
           {{ c.product.name }} — {{ c.concept[:80] ~ '…' if c.concept and c.concept|length > 80 else c.concept or '(no concept yet)' }}
         </a>
@@ -115,15 +115,16 @@
   padding: 0.45rem 1rem;
   font-size: 0.875rem;
   font-family: inherit;
-  border-radius: 6px;
-  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--radius-button);
+  border: 1px solid var(--border-default);
   background: transparent;
-  color: var(--pico-muted-color);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
+  height: 38px;
 }
-.detail-action-btn:hover { border-color: var(--pico-color); color: var(--pico-color); }
-.fav-btn-detail.active { color: #ef4444 !important; border-color: #ef4444 !important; }
-.delete-btn:hover { color: #ef4444 !important; border-color: #ef4444 !important; }
+.detail-action-btn:hover { border-color: var(--text-primary); color: var(--text-primary); background: transparent; transform: none; }
+.fav-btn-detail.active { color: var(--feedback-error) !important; border-color: var(--feedback-error) !important; }
+.delete-btn:hover { color: var(--feedback-error) !important; border-color: var(--feedback-error) !important; }
 </style>
 {% endblock %}

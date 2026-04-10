@@ -4,7 +4,7 @@
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.25rem; flex-wrap:wrap; gap:0.75rem;">
   <h2 style="margin:0;">Inspo</h2>
-  <small style="color:var(--pico-muted-color);">{{ videos|length }} video{{ 's' if videos|length != 1 }}</small>
+  <small style="color:var(--text-secondary);">{{ videos|length }} video{{ 's' if videos|length != 1 }}</small>
 </div>
 
 <div style="display:flex; gap:0.5rem; margin-bottom:1.5rem; align-items:center;">
@@ -12,14 +12,14 @@
     {% if sort != 'added_desc' %}<input type="hidden" name="sort" value="{{ sort }}" />{% endif %}
     <input type="search" name="q" value="{{ q or '' }}" placeholder="Search by creator, caption…" style="margin:0; flex:1;" />
     <button type="submit" class="secondary" style="width:auto; margin:0;">Search</button>
-    {% if q %}<a href="/?sort={{ sort }}" role="button" class="outline secondary" style="margin:0;">Clear</a>{% endif %}
+    {% if q %}<a href="/?sort={{ sort }}" class="btn-outline" style="display:inline-flex;align-items:center;height:40px;padding:0 20px;border-radius:var(--radius-button);font-size:0.875rem;font-weight:600;text-decoration:none;border:1px solid var(--border-default);color:var(--text-secondary);margin:0;">Clear</a>{% endif %}
   </form>
 
   <!-- Sort dropdown -->
   <div class="sort-wrapper" style="position:relative;">
     <button type="button" class="sort-toggle {% if sort != 'added_desc' %}sort-active{% endif %}"
             onclick="toggleSort()" title="Sort">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.5">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
         <line x1="2" y1="4" x2="14" y2="4"/>
         <line x1="4" y1="8" x2="12" y2="8"/>
         <line x1="6" y1="12" x2="10" y2="12"/>
@@ -54,43 +54,43 @@
 <style>
 .sort-toggle {
   display: flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px;
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: 6px;
-  background: var(--pico-background-color);
+  width: 40px; height: 40px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-button);
+  background: var(--surface-elevated);
   cursor: pointer;
-  color: var(--pico-muted-color);
+  color: var(--text-secondary);
   padding: 0; margin: 0; flex-shrink: 0;
 }
-.sort-toggle:hover { border-color: var(--pico-primary); color: var(--pico-primary); }
-.sort-toggle.sort-active { border-color: var(--pico-primary); color: var(--pico-primary); background: var(--pico-primary-background); }
+.sort-toggle:hover { border-color: var(--interactive-default); color: var(--interactive-default); transform: none; }
+.sort-toggle.sort-active { border-color: var(--interactive-default); color: var(--interactive-default); background: rgba(255,105,0,0.08); }
 .sort-menu {
   display: none;
   position: absolute;
   right: 0; top: calc(100% + 4px);
-  background: var(--pico-background-color);
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-card);
   padding: 0.5rem;
   min-width: 160px;
   z-index: 10000;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-200);
 }
 .sort-menu.open { display: block; }
 .sort-group-label {
   font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em;
-  color: var(--pico-muted-color); padding: 0.25rem 0.5rem 0.15rem;
+  color: var(--text-tertiary); padding: 0.25rem 0.5rem 0.15rem;
 }
 .sort-option {
   display: flex; align-items: center; gap: 0.4rem;
   padding: 0.35rem 0.5rem;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 0.85rem;
   text-decoration: none;
-  color: var(--pico-color);
+  color: var(--text-primary);
 }
-.sort-option:hover { background: var(--pico-muted-border-color); }
-.sort-option.active { color: var(--pico-primary); font-weight: 500; }
+.sort-option:hover { background: var(--surface-tertiary); }
+.sort-option.active { color: var(--interactive-default); font-weight: 500; }
 .sort-check { width: 12px; font-size: 0.75rem; }
 </style>
 
@@ -106,7 +106,7 @@ document.addEventListener('click', function(e) {
 </script>
 
 {% if not videos %}
-<div style="text-align:center; padding:4rem 0; color:var(--pico-muted-color);">
+<div style="text-align:center; padding:4rem 0; color:var(--text-secondary);">
   <p style="font-size:2rem;">📹</p>
   {% if q %}
     <p>No videos matching "{{ q }}".</p>
@@ -130,10 +130,10 @@ document.addEventListener('click', function(e) {
             <img src="/thumbnails/{{ video.id }}"
                  style="width:100%; aspect-ratio:9/16; object-fit:cover; display:block;" />
           {% else %}
-            <div style="width:100%; aspect-ratio:9/16; background:#111; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#444; font-size:2rem;">▶</div>
+            <div style="width:100%; aspect-ratio:9/16; background:var(--surface-tertiary); border-radius:var(--radius-card); display:flex; align-items:center; justify-content:center; color:var(--text-tertiary); font-size:2rem;">▶</div>
           {% endif %}
         {% elif video.platform == 'twitter' %}
-          <!-- Custom dark tweet card — no iframe, no corner bleed -->
+          <!-- Custom tweet card -->
           <div class="tweet-card">
             <div class="tweet-header">
               <div class="tweet-avatar">
@@ -152,7 +152,7 @@ document.addEventListener('click', function(e) {
             <p class="tweet-text">{{ video.caption or video.title or '' }}</p>
             {% if video.thumbnail_url %}
               <img src="/thumbnails/{{ video.id }}"
-                   style="width:100%; border-radius:8px; display:block; object-fit:cover;" />
+                   style="width:100%; border-radius:12px; display:block; object-fit:cover;" />
             {% endif %}
           </div>
         {% elif video.embed_html %}
@@ -163,7 +163,7 @@ document.addEventListener('click', function(e) {
           </div>
         {% endif %}
       </div>
-      <!-- Overlay sits above iframe (z-index 9999) to capture hover + show actions -->
+      <!-- Overlay sits above iframe -->
       <div class="embed-overlay" onclick="window.location='/videos/{{ video.id }}'">
         <div class="embed-actions">
           <form method="post" action="/videos/{{ video.id }}/delete"
@@ -187,7 +187,7 @@ document.addEventListener('click', function(e) {
 </div>
 
 <style>
-/* 4-column grid — align-items:start lets cards be their natural height */
+/* 4-column grid */
 .inspo-grid {
   display: grid !important;
   grid-template-columns: repeat(4, 1fr);
@@ -204,47 +204,44 @@ document.addEventListener('click', function(e) {
   background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
-/* Base wrapper — uniform size for all cards */
+/* Base wrapper */
 .inspo-embed-wrapper {
   position: relative;
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   aspect-ratio: 9 / 16;
   -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
-/* Thumbnail wrapper (TikTok / Instagram) */
 .inspo-embed-wrapper.thumbnail-wrapper {
-  background: #181818;
-  color-scheme: dark;
+  background: var(--surface-tertiary);
 }
-/* Border as a pseudo-element overlay so it paints ABOVE the iframe,
-   not as part of the clipping element */
 .inspo-embed-wrapper::after {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-subtle);
   pointer-events: none;
   z-index: 10002;
 }
 .inspo-embed { width: 100%; height: 100%; display: block; }
 .inspo-embed blockquote { margin: 0 !important; max-width: 100% !important; min-width: 0 !important; width: 100% !important; }
-.inspo-embed iframe { width: 100% !important; max-width: 100% !important; min-width: 0 !important; color-scheme: dark; }
+.inspo-embed iframe { width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
 .embed-fallback {
   padding: 2rem;
   text-align: center;
-  background: #111;
-  border-radius: 8px 8px 0 0;
+  background: var(--surface-tertiary);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Hover overlay — activated via JS (CSS :hover doesn't cross iframe boundaries) */
+/* Hover overlay */
 .embed-overlay {
   position: absolute;
   inset: 0;
@@ -299,9 +296,9 @@ document.addEventListener('click', function(e) {
   text-decoration: none;
   color: inherit;
 }
-.card-detail-link:hover .caption { color: var(--pico-primary); }
+.card-detail-link:hover .caption { color: var(--interactive-default); }
 
-/* Custom tweet card — pure CSS, no iframe, no corner issues */
+/* Custom tweet card */
 .tweet-card {
   background: #15202b;
   padding: 14px;
@@ -310,6 +307,9 @@ document.addEventListener('click', function(e) {
   flex-direction: column;
   gap: 10px;
   overflow: hidden;
+}
+[data-theme="light"] .tweet-card {
+  background: #f7f9fa;
 }
 .tweet-header {
   display: flex;
@@ -323,6 +323,7 @@ document.addEventListener('click', function(e) {
   overflow: hidden;
   flex-shrink: 0;
 }
+[data-theme="light"] .tweet-avatar { background: #ccd6dd; }
 .tweet-avatar.tweet-avatar-fallback::after {
   content: attr(data-initial);
   display: flex; align-items: center; justify-content: center;
@@ -345,6 +346,7 @@ document.addEventListener('click', function(e) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+[data-theme="light"] .tweet-name { color: #0f1419; }
 .tweet-handle {
   font-size: 0.78rem;
   color: #6e767d;
@@ -357,6 +359,7 @@ document.addEventListener('click', function(e) {
   color: #e7e9ea;
   flex-shrink: 0;
 }
+[data-theme="light"] .tweet-x-logo { color: #0f1419; }
 .tweet-text {
   font-size: 0.85rem;
   line-height: 1.55;
@@ -368,11 +371,12 @@ document.addEventListener('click', function(e) {
   -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
 }
+[data-theme="light"] .tweet-text { color: #0f1419; }
 .tweet-card img {
   flex: 1;
   min-height: 0;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 12px;
 }
 </style>
 
