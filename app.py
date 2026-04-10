@@ -476,6 +476,16 @@ def admin_video_debug():
     return jsonify(out)
 
 
+@app.route('/admin/retry-failed-videos', methods=['POST'])
+def admin_retry_failed_videos():
+    """Re-trigger metadata fetch for videos that failed (no raw_metadata)."""
+    failed = Video.query.filter(Video.raw_metadata.is_(None)).all()
+    count = len(failed)
+    for i, v in enumerate(failed):
+        threading.Timer(i * 4, lambda vid=v.id: _process_new_video(vid)).start()
+    return jsonify({'retrying': count, 'ids': [v.id for v in failed]})
+
+
 @app.route('/admin/apify-debug')
 def admin_apify_debug():
     """Temp: run Apify scraper on first video and return full raw item."""
