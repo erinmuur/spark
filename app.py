@@ -329,7 +329,12 @@ def thumbnail(video_id):
         import requests as req
         r = req.get(video.thumbnail_url, timeout=8,
                     headers={'User-Agent': 'Mozilla/5.0 (compatible)'})
-        return Response(r.content, mimetype=r.headers.get('content-type', 'image/jpeg'))
+        ct = r.headers.get('content-type', '')
+        if r.status_code == 200 and ct.startswith('image/') and len(r.content) > 2048:
+            # Cache it so we don't re-proxy on every request
+            _cache_thumbnail(video_id, video.thumbnail_url)
+            return Response(r.content, mimetype=ct)
+        abort(404)
     except Exception:
         abort(404)
 
@@ -503,6 +508,18 @@ def admin_retry_missing_thumbnails():
     for i, v in enumerate(missing):
         threading.Timer(i * 4, lambda vid=v.id: _process_new_video(vid)).start()
     return jsonify({'retrying': count, 'ids': [v.id for v in missing]})
+
+
+@app.route('/admin/fix-thumbnail/<int:video_id>', methods=['POST'])
+def admin_fix_thumbnail(video_id):
+    """Re-fetch thumbnail for a specific video via fresh metadata call."""
+    v = Video.query.get_or_404(video_id)
+    # Delete any stale cached file first
+    thumb_path = os.path.join(_data_dir, 'thumbnails', f'{video_id}.jpg')
+    if os.path.exists(thumb_path):
+        os.remove(thumb_path)
+    threading.Thread(target=_process_new_video, args=(video_id,), daemon=True).start()
+    return jsonify({'status': 'retrying', 'id': video_id})
 
 
 @app.route('/admin/purge-bad-thumbnails', methods=['POST'])
