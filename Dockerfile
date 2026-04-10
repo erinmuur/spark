@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 RUN python -c "import whisper; whisper.load_model('tiny')"
 
 COPY . .
+RUN python -c "import app; print('app loaded ok')"
 
 # Persistent data directory (mounted by Contextone)
 RUN mkdir -p /app/data
