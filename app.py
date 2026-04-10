@@ -460,6 +460,22 @@ def video_delete(id):
     return redirect(url_for('inspo'))
 
 
+@app.route('/admin/video-debug')
+def admin_video_debug():
+    """Temp: show raw_metadata for all videos."""
+    videos = Video.query.all()
+    out = []
+    for v in videos:
+        raw = {}
+        if v.raw_metadata:
+            try:
+                raw = json.loads(v.raw_metadata)
+            except Exception:
+                raw = {'parse_error': True}
+        out.append({'id': v.id, 'url': v.url, 'creator': v.creator, 'raw_keys': list(raw.keys()), 'saves_fields': {k: raw.get(k) for k in ['digg_count', 'save_count', 'collectCount', 'savedCount']}})
+    return jsonify(out)
+
+
 @app.route('/admin/delete-all-videos', methods=['POST'])
 def admin_delete_all_videos():
     """One-shot: delete all videos and their thumbnails."""
