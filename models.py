@@ -28,6 +28,7 @@ class Video(db.Model):
     transcript = db.Column(db.Text)        # Whisper speech-to-text
     embed_html = db.Column(db.Text)        # oEmbed HTML from platform
     raw_metadata = db.Column(db.Text)      # JSON from yt-dlp
+    follower_count = db.Column(db.Integer)   # creator's follower count at time of scrape
     slack_user = db.Column(db.String(200))   # display name resolved at ingest time
     slack_channel = db.Column(db.String(100))
     slack_ts = db.Column(db.String(50))

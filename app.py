@@ -39,6 +39,9 @@ with app.app_context():
         if 'slack_message' not in _video_cols:
             _conn.execute(text('ALTER TABLE video ADD COLUMN slack_message TEXT'))
             _conn.commit()
+        if 'follower_count' not in _video_cols:
+            _conn.execute(text('ALTER TABLE video ADD COLUMN follower_count INTEGER'))
+            _conn.commit()
 
 
 @app.template_filter('dark_embed')
@@ -245,6 +248,8 @@ def _process_new_video(video_id):
             v.caption = meta.get('caption', '')
             v.thumbnail_url = meta.get('thumbnail_url', '')
             v.raw_metadata = meta.get('raw', '')
+            if meta.get('follower_count') is not None:
+                v.follower_count = meta['follower_count']
             duration = meta.get('duration')
             db.session.commit()
             # Populate metrics on any CampaignVideo rows linked to this video
@@ -937,16 +942,30 @@ def campaign_chat(id):
     for i, cv in enumerate(campaign.campaign_videos, 1):
         v = cv.video
         fw_name = v.framework.name if v.framework else 'Unclassified'
+        # Pull original video stats from raw_metadata as fallback for campaign metrics
+        raw = {}
+        if v.raw_metadata:
+            try:
+                raw = json.loads(v.raw_metadata)
+            except Exception:
+                pass
+        orig_views = raw.get('view_count') or cv.views or 0
+        orig_likes = raw.get('like_count') or cv.likes or 0
+        orig_comments = raw.get('comment_count') or cv.comments or 0
+        orig_shares = raw.get('repost_count') or raw.get('share_count') or cv.shares or 0
+        orig_saves = raw.get('digg_count') or cv.saves or 0
         lines.append(
             f'{i}. "{v.title or "Untitled"}" by @{v.creator or "unknown"} ({v.platform or "?"})'
         )
         lines.append(f'   Framework: {fw_name} | Format: {v.video_format or "N/A"}')
+        if v.follower_count:
+            lines.append(f'   Creator followers: {v.follower_count:,}')
+        lines.append(
+            f'   Video stats: {orig_views:,} views, {orig_likes:,} likes, '
+            f'{orig_comments:,} comments, {orig_shares:,} shares, {orig_saves:,} saves'
+        )
         if v.analysis:
             lines.append(f'   Analysis: {v.analysis}')
-        lines.append(
-            f'   Metrics: {cv.views or 0} views, {cv.likes or 0} likes, '
-            f'{cv.comments or 0} comments, {cv.shares or 0} shares, {cv.saves or 0} saves'
-        )
 
     system_prompt = '\n'.join(lines)
 

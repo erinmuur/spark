@@ -114,6 +114,7 @@ def _fetch_tiktok_via_apify(url):
             'comment_count': item.get('commentCount'),
             'share_count': item.get('shareCount'),
             'save_count': item.get('collectCount'),
+            'follower_count': author_meta.get('fans'),
             'raw': json.dumps({
                 'title': item.get('text', '')[:120],
                 'uploader': author_meta.get('name'),
@@ -223,14 +224,17 @@ def fetch_metadata(url):
 
     save_count = info.get('digg_count') or info.get('favorite_count')
 
-    # For TikTok, try Apify to fill in missing thumbnail and/or saves
-    if is_tiktok and (not thumbnail or save_count is None):
+    follower_count = None
+    # For TikTok, try Apify to fill in missing thumbnail, saves, and follower count
+    if is_tiktok and (not thumbnail or save_count is None or follower_count is None):
         apify_data = _fetch_tiktok_via_apify(url)
         if apify_data:
             if not thumbnail and apify_data.get('thumbnail_url'):
                 thumbnail = apify_data['thumbnail_url']
             if save_count is None and apify_data.get('save_count') is not None:
                 save_count = apify_data['save_count']
+            if apify_data.get('follower_count') is not None:
+                follower_count = apify_data['follower_count']
     # Last resort for TikTok thumbnail: oEmbed API (stable, doesn't expire)
     if is_tiktok and not thumbnail:
         oembed = _fetch_tiktok_oembed(url)
@@ -249,6 +253,7 @@ def fetch_metadata(url):
         'comment_count': info.get('comment_count'),
         'share_count': info.get('repost_count') or info.get('share_count'),
         'save_count': save_count,
+        'follower_count': follower_count,
         'raw': json.dumps({
             'title': info.get('title'),
             'uploader': info.get('uploader'),
