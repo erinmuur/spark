@@ -10,6 +10,18 @@ import os
 
 app = modal.App("spark-tribe")
 
+def _download_model():
+    """Pre-download TRIBE v2 weights into the image at build time."""
+    import os
+    import huggingface_hub
+    hf_token = os.environ.get("HF_TOKEN")
+    if hf_token:
+        huggingface_hub.login(token=hf_token, add_to_git_credential=False)
+    from tribev2.demo_utils import TribeModel
+    TribeModel.from_pretrained("facebook/tribev2")
+    print("TRIBE v2 model downloaded.")
+
+
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("ffmpeg", "git", "wget")
@@ -20,10 +32,7 @@ image = (
         index_url="https://download.pytorch.org/whl/cu118",
     )
     .pip_install(
-        "fastapi[standard]>=0.100",
-        "pydantic>=2",
-    )
-    .pip_install(
+        "uv",  # provides uvx, required by tribev2's get_events_dataframe for transcription
         "git+https://github.com/facebookresearch/tribev2.git@72399081ed3f1040c4d996cefb2864a4c46f5b8e",
         "neuraltrain==0.0.2",
         "whisperx",
@@ -33,22 +42,50 @@ image = (
         "numpy",
         "Pillow",
     )
+    .run_function(
+        _download_model,
+        secrets=[modal.Secret.from_name("huggingface")],
+        timeout=600,
+    )
 )
-
-# Cache the model weights in a Modal volume so we only download once
-model_volume = modal.Volume.from_name("spark-tribe-models", create_if_missing=True)
 
 
 @app.function(
     image=image,
-    gpu="T4",
-    timeout=300,
+    gpu="A10G",
+    timeout=3600,
     secrets=[modal.Secret.from_name("huggingface")],
-    volumes={"/model-cache": model_volume},
 )
-@modal.fastapi_endpoint(method="POST")
-def run_tribe_inference(item: dict) -> dict:
-    video_url: str = item["url"]
+@modal.asgi_app()
+def run_tribe_inference():
+    """Raw ASGI endpoint — no FastAPI/pydantic dependency (avoids Modal 1.4.1 conflict)."""
+    import json
+
+    async def asgi_app(scope, receive, send):
+        if scope["type"] != "http":
+            return
+        body = b""
+        while True:
+            msg = await receive()
+            body += msg.get("body", b"")
+            if not msg.get("more_body", False):
+                break
+        try:
+            data = json.loads(body)
+            result = _run_inference(data["url"])
+            status, response_body = 200, json.dumps(result).encode()
+        except Exception as e:
+            import traceback
+            status = 500
+            response_body = json.dumps({"error": str(e), "traceback": traceback.format_exc()}).encode()
+        await send({"type": "http.response.start", "status": status,
+                    "headers": [(b"content-type", b"application/json")]})
+        await send({"type": "http.response.body", "body": response_body})
+
+    return asgi_app
+
+
+def _run_inference(video_url: str) -> dict:
     """
     Download video, run TRIBE v2 inference, extract peak/valley frames.
 
@@ -73,19 +110,11 @@ def run_tribe_inference(item: dict) -> dict:
     import huggingface_hub
     from tribev2.demo_utils import TribeModel
 
-    # Auth
-    hf_token = os.environ.get("HF_TOKEN")
-    if hf_token:
-        huggingface_hub.login(token=hf_token, add_to_git_credential=False)
+    # Model is pre-downloaded into the image at build time — no download needed at runtime
+    # Patch config to use CUDA
+    _patch_config_for_gpu()
 
-    cache_dir = "/model-cache/tribev2"
-    os.makedirs(cache_dir, exist_ok=True)
-
-    # Patch config to use CUDA (GPU is available on Modal)
-    _patch_config_for_gpu(cache_dir)
-
-    # Load model (cached in volume after first run)
-    model = TribeModel.from_pretrained("facebook/tribev2", cache_folder=cache_dir)
+    model = TribeModel.from_pretrained("facebook/tribev2")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Download video
@@ -125,14 +154,12 @@ def run_tribe_inference(item: dict) -> dict:
     }
 
 
-def _patch_config_for_gpu(cache_dir: str):
+def _patch_config_for_gpu():
     """Ensure TRIBE config says device: cuda (correct for Modal GPU)."""
     import glob as _glob
     import re
 
-    # Check both the custom cache dir and the default HF cache
     patterns = [
-        os.path.join(cache_dir, "**", "config.yaml"),
         os.path.expanduser("~/.cache/huggingface/hub/models--facebook--tribev2/snapshots/*/config.yaml"),
     ]
     for pattern in patterns:
