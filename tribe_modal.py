@@ -72,7 +72,9 @@ def run_tribe_inference():
                 break
         try:
             data = json.loads(body)
-            result = _run_inference(data["url"])
+            import asyncio
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, _run_inference, data["url"])
             status, response_body = 200, json.dumps(result).encode()
         except Exception as e:
             import traceback
