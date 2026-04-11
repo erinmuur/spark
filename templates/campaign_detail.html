@@ -79,7 +79,13 @@
 
 {# ── Campaign Chat ── #}
 <div class="cd-chat-section">
-  <h3 class="cd-section-title" style="margin-bottom:0.75rem;">Analyze this Campaign</h3>
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+    <h3 class="cd-section-title" style="margin:0;">Analyze this Campaign</h3>
+    <button type="button" id="load-comments-btn" onclick="loadComments()"
+            style="font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:8px; border:1px solid var(--border-default); background:var(--surface-secondary); color:var(--text-secondary); cursor:pointer;">
+      Load Comments
+    </button>
+  </div>
   <div class="cd-chat-container">
     <div class="cd-chat-messages" id="chat-messages"></div>
     <div class="cd-chat-input-row">
@@ -905,6 +911,22 @@ function renderMd(text) {
 function scrollChat() {
   var el = document.getElementById('chat-messages');
   el.scrollTop = el.scrollHeight;
+}
+
+function loadComments() {
+  var btn = document.getElementById('load-comments-btn');
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+  fetch('/campaigns/{{ campaign.id }}/fetch-comments', {method: 'POST'})
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      btn.textContent = 'Comments loaded ✓';
+      btn.style.color = 'var(--text-tertiary)';
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = 'Load Comments';
+    });
 }
 
 function sendMessage() {

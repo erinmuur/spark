@@ -534,3 +534,44 @@ def fetch_rich_content(url, duration=None):
             result['transcript'] = ''
 
     return result
+
+
+def fetch_comments(url, platform, max_comments=100):
+    """Fetch top comments for a video via Apify. Returns list of {text, likes, username}."""
+    api_token = os.environ.get('APIFY_API_TOKEN')
+    if not api_token:
+        return []
+    try:
+        from apify_client import ApifyClient
+        client = ApifyClient(api_token)
+        if platform == 'tiktok':
+            run = client.actor('clockworks/tiktok-comments-scraper').call(
+                run_input={'postURLs': [url], 'commentsPerPost': max_comments},
+                timeout_secs=120,
+            )
+            items = list(client.dataset(run['defaultDatasetId']).iterate_items())
+            return [
+                {
+                    'username': item.get('uniqueId') or item.get('authorMeta', {}).get('name') or '',
+                    'text': item.get('text') or '',
+                    'likes': item.get('diggCount') or 0,
+                }
+                for item in items if item.get('text')
+            ]
+        elif platform == 'instagram':
+            run = client.actor('apify/instagram-comment-scraper').call(
+                run_input={'directUrls': [url], 'resultsLimit': max_comments},
+                timeout_secs=120,
+            )
+            items = list(client.dataset(run['defaultDatasetId']).iterate_items())
+            return [
+                {
+                    'username': item.get('ownerUsername') or '',
+                    'text': item.get('text') or '',
+                    'likes': item.get('likesCount') or 0,
+                }
+                for item in items if item.get('text')
+            ]
+    except Exception:
+        pass
+    return []

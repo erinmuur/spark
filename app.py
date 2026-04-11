@@ -51,6 +51,9 @@ with app.app_context():
         if 'slack_ts' not in _video_cols:
             _conn.execute(text('ALTER TABLE video ADD COLUMN slack_ts VARCHAR(50)'))
             _conn.commit()
+        if 'comments_json' not in _video_cols:
+            _conn.execute(text('ALTER TABLE video ADD COLUMN comments_json TEXT'))
+            _conn.commit()
 
 
 @app.template_filter('dark_embed')
@@ -632,6 +635,31 @@ def admin_apify_debug():
         return jsonify({'error': str(e)})
 
 
+@app.route('/campaigns/<int:id>/fetch-comments', methods=['POST'])
+def campaign_fetch_comments(id):
+    """Fetch comments for all videos in a campaign via Apify (async)."""
+    campaign = Campaign.query.get_or_404(id)
+    video_ids = [cv.video_id for cv in campaign.campaign_videos]
+
+    def _do_fetch(ids):
+        from ingest import fetch_comments
+        with app.app_context():
+            for vid_id in ids:
+                v = Video.query.get(vid_id)
+                if not v or v.platform not in ('tiktok', 'instagram'):
+                    continue
+                try:
+                    comments = fetch_comments(v.url, v.platform)
+                    if comments:
+                        v.comments_json = json.dumps(comments)
+                        db.session.commit()
+                except Exception:
+                    pass
+
+    threading.Thread(target=_do_fetch, args=(video_ids,), daemon=True).start()
+    return jsonify({'queued': len(video_ids)})
+
+
 @app.route('/admin/clear-tribe-errors', methods=['POST'])
 def admin_clear_tribe_errors():
     """Reset all failed/errored TRIBE statuses back to idle."""
@@ -1020,6 +1048,18 @@ def campaign_chat(id):
         )
         if v.analysis:
             lines.append(f'   Analysis: {v.analysis}')
+        if v.comments_json:
+            try:
+                comments = json.loads(v.comments_json)
+                # Include up to 50 comments — enough for pattern analysis without bloating context
+                sample = comments[:50]
+                lines.append(f'   Top comments ({len(comments)} total, showing {len(sample)}):')
+                for c in sample:
+                    username = f'@{c["username"]}' if c.get("username") else 'user'
+                    likes = f' ({c["likes"]} likes)' if c.get("likes") else ''
+                    lines.append(f'     {username}: {c["text"]}{likes}')
+            except Exception:
+                pass
 
     system_prompt = '\n'.join(lines)
 
