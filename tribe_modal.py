@@ -42,6 +42,19 @@ image = (
         "numpy",
         "Pillow",
     )
+    .run_commands(
+        # Patch tribev2 to skip word-level alignment (WAV2VEC2 embedding step).
+        # Word alignment takes ~90 min on CPU. TRIBE only needs segment-level
+        # timestamps, so --no_align produces equivalent results much faster.
+        "python3 -c \""
+        "import re, pathlib; "
+        "p = pathlib.Path('/usr/local/lib/python3.11/site-packages/tribev2/eventstransforms.py'); "
+        "src = p.read_text(); "
+        "patched = src.replace('\\\"--align_model\\\",\\n                \\\"WAV2VEC2_ASR_LARGE_LV60K_960H\\\" if language == \\\"english\\\" else \\\"\\\",', "
+        "'\\\"--no_align\\\",'); "
+        "p.write_text(patched); "
+        "print('Patch applied:', '--no_align' in patched)\""
+    )
     .run_function(
         _download_model,
         secrets=[modal.Secret.from_name("huggingface")],
