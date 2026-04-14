@@ -42,7 +42,8 @@ def run_inference(video_id):
             json={"url": video.url},
             timeout=(10, 3660),  # (connect timeout, read timeout) — Modal fn is 3600s max
         )
-        response.raise_for_status()
+        if not response.ok:
+            raise RuntimeError(f'Modal returned {response.status_code}: {response.text[:500]}')
         result = response.json()
 
         scores = result['scores']
