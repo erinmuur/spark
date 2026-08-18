@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}UGC — Spark{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.25rem;">
+  <div>
+    <h2 style="margin-bottom:0.15rem;">UGC</h2>
+    <span style="font-size:0.82rem; color:var(--text-secondary);">
+      {{ totals.posts }} post{{ 's' if totals.posts != 1 }} ·
+      {{ totals.uploads }} upload{{ 's' if totals.uploads != 1 }} ·
+      {{ totals.creators }} creator{{ 's' if totals.creators != 1 }}
+    </span>
+  </div>
+  <div style="display:flex; align-items:center; gap:0.5rem;">
+    {% if ungrouped %}
+    <button type="button" class="secondary"
+            hx-post="/ugc/regroup" hx-target="#regroup-notice" hx-swap="innerHTML"
+            title="Group campaign videos that aren't in a post yet">
+      Group {{ ungrouped }} loose video{{ 's' if ungrouped != 1 }}
+    </button>
+    {% endif %}
+    <a href="/ugc/new" class="btn" style="background:var(--interactive-default); color:#fff;">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
+      New Post
+    </a>
+  </div>
+</div>
+<div id="regroup-notice" style="margin-bottom:0.75rem;"></div>
+
+{# ── Rollup tiles ── #}
+<div class="ugc-summary">
+  <div class="tile">
+    <div class="tile-label">Total views</div>
+    <div class="tile-value">{{ totals.views | humannum if totals.views else '—' }}</div>
+    <div class="tile-sub">across {{ totals.uploads }} upload{{ 's' if totals.uploads != 1 }}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Engagements</div>
+    <div class="tile-value">{{ totals.engagements | humannum if totals.engagements else '—' }}</div>
+    <div class="tile-sub">likes + comments + shares + saves</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Engagement rate</div>
+    <div class="tile-value">{{ '%.1f%%' % totals.engagement_rate if totals.engagement_rate is not none else '—' }}</div>
+    <div class="tile-sub">of total views</div>
+  </div>
+  {% for row in platform_rows %}
+  <div class="tile">
+    <div class="tile-label">{{ row.label }}</div>
+    <div class="tile-value">{{ row.views | humannum if row.views else '—' }}</div>
+    <div class="tile-sub">
+      {{ row.uploads }} upload{{ 's' if row.uploads != 1 }}{% if row.engagement_rate is not none %} · {{ '%.1f%%' % row.engagement_rate }} ER{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{# ── Filters ── #}
+<form method="get" action="/ugc"
+      style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:1.25rem;">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search creator, title, caption…"
+         style="flex:1; min-width:200px; width:auto;" />
+  <select name="platform" style="width:auto; min-width:150px;" onchange="this.form.submit()">
+    <option value="">All platforms</option>
+    <option value="tiktok"    {% if platform_filter == 'tiktok' %}selected{% endif %}>TikTok</option>
+    <option value="instagram" {% if platform_filter == 'instagram' %}selected{% endif %}>Instagram</option>
+    <option value="youtube"   {% if platform_filter == 'youtube' %}selected{% endif %}>YouTube</option>
+    <option value="twitter"   {% if platform_filter == 'twitter' %}selected{% endif %}>X</option>
+    <option value="incomplete" {% if platform_filter == 'incomplete' %}selected{% endif %}>Missing a platform</option>
+  </select>
+  <select name="campaign" style="width:auto; min-width:170px;" onchange="this.form.submit()">
+    <option value="">All campaigns</option>
+    <option value="none" {% if campaign_filter == 'none' %}selected{% endif %}>No campaign</option>
+    {% for c in campaigns %}
+    <option value="{{ c.id }}" {% if campaign_filter == c.id|string %}selected{% endif %}>{{ c.display_name }}</option>
+    {% endfor %}
+  </select>
+  <select name="sort" style="width:auto; min-width:150px;" onchange="this.form.submit()">
+    <option value="newest"     {% if sort == 'newest' %}selected{% endif %}>Newest</option>
+    <option value="views"      {% if sort == 'views' %}selected{% endif %}>Most views</option>
+    <option value="engagement" {% if sort == 'engagement' %}selected{% endif %}>Engagement rate</option>
+    <option value="platforms"  {% if sort == 'platforms' %}selected{% endif %}>Most platforms</option>
+    <option value="creator"    {% if sort == 'creator' %}selected{% endif %}>Creator A–Z</option>
+  </select>
+  <button type="submit" class="outline">Apply</button>
+</form>
+
+{# ── Post grid ── #}
+{% if not posts %}
+<div class="ugc-empty">
+  <p style="font-weight:600; color:var(--text-primary); margin-bottom:0.4rem;">No UGC posts yet</p>
+  <p style="margin-bottom:1rem;">
+    Add a post with the TikTok, Instagram and YouTube links for one creative,
+    and they'll share a page with per-platform stats.
+  </p>
+  <a href="/ugc/new" class="btn btn-secondary">New Post</a>
+</div>
+{% else %}
+<div class="ugc-grid">
+  {% for p in posts %}
+  <a href="/ugc/{{ p.id }}" class="ugc-card">
+    {% set thumb = p.thumbnail_video %}
+    {% if thumb and thumb.thumbnail_url %}
+      <img class="ugc-card-thumb" src="/thumbnails/{{ thumb.id }}" alt="" loading="lazy" />
+    {% else %}
+      <div class="ugc-card-thumb placeholder">🎬</div>
+    {% endif %}
+
+    <div class="ugc-card-body">
+      <div class="plat-dots">
+        {% for plat in p.platforms %}
+        <span class="plat-dot badge-{{ plat }}">{{ plat | platabbr }}</span>
+        {% endfor %}
+        {% for plat in p.missing_platforms %}
+        <span class="plat-dot missing">{{ plat | platabbr }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="ugc-card-title">{{ p.display_name }}</div>
+      {% if p.creator %}<div class="ugc-card-creator">@{{ p.creator }}</div>{% endif %}
+      {% if p.campaign %}
+      <div style="font-size:0.72rem; color:var(--text-tertiary);">{{ p.campaign.display_name }}</div>
+      {% endif %}
+
+      <div class="ugc-card-stats">
+        <span><b>{{ p.total_views | humannum if p.total_views else '—' }}</b> views</span>
+        <span><b>{{ p.total_engagements | humannum if p.total_engagements else '—' }}</b> eng.</span>
+        {% if p.engagement_rate is not none %}
+        <span><b>{{ '%.1f%%' % p.engagement_rate }}</b> ER</span>
+        {% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -8,3 +8,7 @@ __pycache__/
 .DS_Store
 instance/
 data/
+
+.claude/settings.local.json
+venv_backup.txt
+venv_py39_backup/

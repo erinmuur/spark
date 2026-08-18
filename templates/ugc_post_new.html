@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}New UGC Post — Spark{% endblock %}
+
+{% block content %}
+<a href="/ugc" style="font-size:0.8rem; text-decoration:none; color:var(--text-secondary);">← All UGC</a>
+
+<h2 style="margin:0.75rem 0 0.3rem;">New UGC post</h2>
+<p style="font-size:0.85rem; color:var(--text-secondary); max-width:52ch;">
+  Paste every platform link for the same creative — TikTok, Instagram, YouTube.
+  They'll share one page, and stats are broken out per platform.
+</p>
+
+<form method="post" action="/ugc/new" style="max-width:560px; margin-top:1.5rem;">
+  <label>Platform links
+    <textarea name="video_urls" rows="4" required
+              placeholder="https://www.tiktok.com/@creator/video/123…&#10;https://www.instagram.com/reel/abc…&#10;https://www.youtube.com/shorts/xyz…"></textarea>
+  </label>
+
+  <label>Title <small style="font-weight:400;">(optional — taken from the video if blank)</small>
+    <input type="text" name="title" placeholder="e.g. 'Bookwise made my TBR actually happen'" />
+  </label>
+
+  <label>Creator <small style="font-weight:400;">(optional — detected from the video if blank)</small>
+    <input type="text" name="creator" placeholder="handle" />
+  </label>
+
+  <label>Campaign
+    <select name="campaign_id">
+      <option value="">— none —</option>
+      {% for c in campaigns %}
+      <option value="{{ c.id }}">{{ c.display_name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label>Notes
+    <textarea name="notes" rows="3" placeholder="Brief context, deliverable terms, anything worth remembering…"></textarea>
+  </label>
+
+  <div style="display:flex; gap:0.6rem;">
+    <button type="submit">Create post</button>
+    <a href="/ugc" class="btn btn-outline">Cancel</a>
+  </div>
+  <p style="font-size:0.78rem; color:var(--text-tertiary); margin-top:0.8rem;">
+    Metadata and stats are fetched in the background — reload in a minute if a
+    platform still looks empty.
+  </p>
+</form>
+{% endblock %}

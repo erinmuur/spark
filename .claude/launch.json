@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "spark",
+      "runtimeExecutable": "venv/bin/flask",
+      "runtimeArgs": ["run", "--debug", "--port", "5003"],
+      "port": 5003
+    }
+  ]
+}
