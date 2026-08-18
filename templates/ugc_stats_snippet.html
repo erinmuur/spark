@@ -1,0 +1,57 @@
+{# Combined totals + per-platform share. Swapped in by htmx after a metrics save. #}
+<div class="ugc-summary">
+  <div class="tile">
+    <div class="tile-label">Total views</div>
+    <div class="tile-value">{{ post.total_views | humannum if post.total_views else '—' }}</div>
+    <div class="tile-sub">{{ post.videos|length }} upload{{ 's' if post.videos|length != 1 }}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Likes</div>
+    <div class="tile-value">{{ post.total_likes | humannum if post.total_likes else '—' }}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Comments</div>
+    <div class="tile-value">{{ post.total_comments | humannum if post.total_comments else '—' }}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Shares</div>
+    <div class="tile-value">{{ post.total_shares | humannum if post.total_shares else '—' }}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Saves</div>
+    <div class="tile-value">{{ post.total_saves | humannum if post.total_saves else '—' }}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Engagement rate</div>
+    <div class="tile-value">{{ '%.1f%%' % post.engagement_rate if post.engagement_rate is not none else '—' }}</div>
+    <div class="tile-sub">
+      {% if post.top_video %}best: {{ post.top_video.platform_label }}{% else %}no view data yet{% endif %}
+    </div>
+  </div>
+</div>
+
+{# Share of views by platform #}
+{% if post.total_views %}
+<div style="margin-bottom:1.75rem;">
+  <div class="share-bar">
+    {% for v in post.ordered_videos %}
+      {% if v.views %}
+      <div class="share-seg {{ v.platform or 'unknown' }}"
+           style="width: {{ (v.views / post.total_views * 100) | round(2) }}%"
+           title="{{ v.platform_label }}: {{ '{:,}'.format(v.views) }} views"></div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="share-legend">
+    {% for v in post.ordered_videos %}
+      {% if v.views %}
+      <span>
+        <span class="share-key share-seg {{ v.platform or 'unknown' }}"></span>
+        {{ v.platform_label }} — {{ v.views | humannum }}
+        ({{ (v.views / post.total_views * 100) | round(0) | int }}%)
+      </span>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}

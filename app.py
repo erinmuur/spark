@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import threading
 from datetime import datetime
@@ -7,8 +8,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, Response, abort
-from models import db, Video, Framework, Product, Campaign, CampaignVideo, DEFAULT_FRAMEWORKS, DEFAULT_PRODUCTS, _STALE_DEFAULT_FRAMEWORKS
+from models import (db, Video, Framework, Product, Campaign, CampaignVideo, Post,
+                    PLATFORM_ORDER, PLATFORM_LABELS, platform_abbr,
+                    DEFAULT_FRAMEWORKS, DEFAULT_PRODUCTS, _STALE_DEFAULT_FRAMEWORKS)
 import ai
+import posts as ugc
 
 app = Flask(__name__)
 
@@ -92,6 +96,11 @@ def fromjson_filter(s):
         return {}
 
 
+@app.template_filter('platabbr')
+def platabbr_filter(platform):
+    return platform_abbr(platform)
+
+
 @app.template_filter('humannum')
 def humannum_filter(n):
     if n is None:
@@ -102,6 +111,14 @@ def humannum_filter(n):
     if n >= 1_000:
         return f'{n / 1_000:.0f}K'
     return str(n)
+
+
+def _intval(raw):
+    """Parse a metrics form field into an int, tolerating '12,345' and blanks."""
+    if raw is None:
+        return None
+    v = raw.strip().replace(',', '')
+    return int(v) if v.isdigit() else None
 
 
 def _cache_thumbnail(video_id, url):
@@ -138,6 +155,14 @@ def migrate_db():
         ('video', 'tribe_scores', 'TEXT'),
         ('video', 'tribe_suggestions', 'TEXT'),
         ('video', 'tribe_status', 'TEXT'),
+        # Canonical per-upload metrics + UGC post grouping
+        ('video', 'views', 'INTEGER'),
+        ('video', 'likes', 'INTEGER'),
+        ('video', 'comments', 'INTEGER'),
+        ('video', 'shares', 'INTEGER'),
+        ('video', 'saves', 'INTEGER'),
+        ('video', 'metrics_updated_at', 'DATETIME'),
+        ('video', 'post_id', 'INTEGER'),
     ]
     with db.engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -215,6 +240,51 @@ def backfill_campaign_videos():
     db.session.commit()
 
 
+_METRIC_FIELDS = ('views', 'likes', 'comments', 'shares', 'saves')
+
+# yt-dlp field names -> our metric names
+_RAW_METRIC_KEYS = {
+    'views': 'view_count',
+    'likes': 'like_count',
+    'comments': 'comment_count',
+    'shares': 'repost_count',
+    'saves': 'digg_count',
+}
+
+
+def backfill_video_metrics():
+    """Seed Video.<metric> from existing CampaignVideo rows and raw metadata.
+
+    Metrics used to live only on CampaignVideo. They're now canonical on Video
+    so a UGC post can total them without going through a campaign.
+    """
+    videos = Video.query.filter(
+        db.or_(*[getattr(Video, f).is_(None) for f in _METRIC_FIELDS])
+    ).all()
+    changed = False
+    for v in videos:
+        raw = {}
+        if v.raw_metadata:
+            try:
+                raw = json.loads(v.raw_metadata)
+            except (json.JSONDecodeError, TypeError):
+                raw = {}
+        links = v.campaign_video_links or []
+        for field in _METRIC_FIELDS:
+            if getattr(v, field) is not None:
+                continue
+            # Prefer a hand-entered campaign number over the scraped one
+            val = next((getattr(cv, field) for cv in links
+                        if getattr(cv, field) is not None), None)
+            if val is None:
+                val = raw.get(_RAW_METRIC_KEYS[field])
+            if val is not None:
+                setattr(v, field, val)
+                changed = True
+    if changed:
+        db.session.commit()
+
+
 def seed_db():
     """Seed default frameworks and products, adding any that are missing."""
     for f in DEFAULT_FRAMEWORKS:
@@ -280,30 +350,56 @@ def _process_new_video(video_id):
             v.transcript = transcript
             db.session.commit()
         classify_in_background(video_id, frames=frames, transcript=transcript)
+        # Group last — the transcript is the strongest cross-post match signal
+        _group_if_ugc(video_id)
 
 
 def _apply_video_metrics(video_id, meta):
-    """Write analytics from metadata dict to all CampaignVideo rows for this video."""
-    cvs = CampaignVideo.query.filter_by(video_id=video_id).all()
-    if not cvs:
+    """Write scraped analytics onto the Video, then mirror to its campaign links."""
+    video = Video.query.get(video_id)
+    if not video:
         return
-    views = meta.get('view_count')
-    likes = meta.get('like_count')
-    comments = meta.get('comment_count')
-    shares = meta.get('share_count')
-    saves = meta.get('save_count')
-    for cv in cvs:
-        if views is not None:
-            cv.views = views
-        if likes is not None:
-            cv.likes = likes
-        if comments is not None:
-            cv.comments = comments
-        if shares is not None:
-            cv.shares = shares
-        if saves is not None:
-            cv.saves = saves
+    values = {
+        'views': meta.get('view_count'),
+        'likes': meta.get('like_count'),
+        'comments': meta.get('comment_count'),
+        'shares': meta.get('share_count'),
+        'saves': meta.get('save_count'),
+    }
+    if not any(v is not None for v in values.values()):
+        return
+
+    for field, val in values.items():
+        if val is not None:
+            setattr(video, field, val)
+    video.metrics_updated_at = datetime.utcnow()
+
+    # Keep legacy campaign-level numbers in step with the canonical ones
+    for cv in CampaignVideo.query.filter_by(video_id=video_id).all():
+        for field, val in values.items():
+            if val is not None:
+                setattr(cv, field, val)
     db.session.commit()
+
+
+def _group_if_ugc(video_id):
+    """Group a freshly-ingested video into a UGC post, if it belongs to a campaign.
+
+    Runs after metadata lands — grouping needs the creator and caption, which
+    aren't known when the Video row is first created.
+    """
+    video = Video.query.get(video_id)
+    if not video or video.post_id:
+        return
+    link = CampaignVideo.query.filter_by(video_id=video_id).first()
+    if not link:
+        return  # Inspiration video from Slack, not creator UGC
+    try:
+        ugc.group_video(video, campaign_id=link.campaign_id)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f'[ugc] grouping failed for video {video_id}: {e}', file=sys.stderr, flush=True)
 
 
 def find_or_create_videos(urls):
@@ -433,7 +529,14 @@ def video_detail(id):
     campaign_id = request.args.get('campaign_id', type=int)
     if campaign_id:
         from_campaign = Campaign.query.get(campaign_id)
-    return render_template('video_detail.html', video=video, statuses=CAMPAIGN_STATUSES, from_campaign=from_campaign)
+    # Offer same-creator posts first — they're the likely cross-post target
+    key = ugc.normalize_handle(video.creator)
+    all_posts = sorted(
+        Post.query.all(),
+        key=lambda p: (0 if p.creator_key and p.creator_key == key else 1, -(p.id or 0)),
+    )
+    return render_template('video_detail.html', video=video, statuses=CAMPAIGN_STATUSES,
+                           from_campaign=from_campaign, all_posts=all_posts)
 
 
 @app.route('/videos/<int:id>/reanalyze', methods=['POST'])
@@ -1201,19 +1304,26 @@ def campaign_add_videos(campaign_id):
         exists = CampaignVideo.query.filter_by(campaign_id=campaign.id, video_id=video.id).first()
         if not exists:
             cv = CampaignVideo(campaign_id=campaign.id, video_id=video.id)
-            # Pre-populate metrics from existing raw_metadata if available
-            if video.raw_metadata:
+            # Pre-populate from the video's canonical metrics, falling back to
+            # raw metadata for rows ingested before metrics moved to Video
+            for field in _METRIC_FIELDS:
+                setattr(cv, field, getattr(video, field))
+            if not any(getattr(cv, f) is not None for f in _METRIC_FIELDS) and video.raw_metadata:
                 try:
                     raw = json.loads(video.raw_metadata)
-                    cv.views = raw.get('view_count')
-                    cv.likes = raw.get('like_count')
-                    cv.comments = raw.get('comment_count')
-                    cv.shares = raw.get('repost_count')
-                    cv.saves = raw.get('digg_count')
+                    for field, key in _RAW_METRIC_KEYS.items():
+                        setattr(cv, field, raw.get(key))
                 except (json.JSONDecodeError, TypeError):
                     pass
             db.session.add(cv)
             added += 1
+    db.session.commit()
+
+    # Group any video that already has metadata; the rest get grouped by the
+    # background ingest thread once their metadata lands.
+    for video in videos:
+        if not video.post_id and (video.creator or video.title):
+            ugc.group_video(video, campaign_id=campaign.id)
     db.session.commit()
 
     if request.headers.get('HX-Request'):
@@ -1273,15 +1383,13 @@ def campaign_reclassify(campaign_id):
 def campaign_video_metrics(campaign_id, video_id):
     cv = CampaignVideo.query.filter_by(campaign_id=campaign_id, video_id=video_id).first_or_404()
 
-    def intval(key):
-        v = request.form.get(key, '').strip()
-        return int(v) if v.isdigit() else None
-
-    cv.views = intval('views')
-    cv.likes = intval('likes')
-    cv.comments = intval('comments')
-    cv.shares = intval('shares')
-    cv.saves = intval('saves')
+    for field in _METRIC_FIELDS:
+        val = _intval(request.form.get(field))
+        setattr(cv, field, val)
+        if cv.video is not None:
+            setattr(cv.video, field, val)
+    if cv.video is not None:
+        cv.video.metrics_updated_at = datetime.utcnow()
     db.session.commit()
 
     if request.headers.get('HX-Request'):
@@ -1315,6 +1423,317 @@ def campaign_metrics(id):
     if request.headers.get('HX-Request'):
         return '<span class="saved-notice">Metrics saved ✓</span>'
     return redirect(url_for('campaign_detail', id=id))
+
+
+# ---------------------------------------------------------------------------
+# UGC posts — one creative, grouped across platforms
+# ---------------------------------------------------------------------------
+
+def _post_sort_key(sort):
+    if sort == 'views':
+        return lambda p: -(p.total_views or 0)
+    if sort == 'engagement':
+        return lambda p: -(p.engagement_rate or 0)
+    if sort == 'platforms':
+        return lambda p: -len(p.platforms)
+    if sort == 'creator':
+        return lambda p: (p.creator or '').lower()
+    return lambda p: -(p.id or 0)  # newest
+
+
+@app.route('/ugc')
+def ugc_posts():
+    q = request.args.get('q', '').strip().lower()
+    sort = request.args.get('sort', 'newest')
+    campaign_filter = request.args.get('campaign', '').strip()
+    platform_filter = request.args.get('platform', '').strip()
+
+    all_posts = Post.query.all()
+
+    items = all_posts
+    if campaign_filter.isdigit():
+        items = [p for p in items if p.campaign_id == int(campaign_filter)]
+    elif campaign_filter == 'none':
+        items = [p for p in items if not p.campaign_id]
+    if platform_filter:
+        if platform_filter == 'incomplete':
+            items = [p for p in items if p.missing_platforms]
+        else:
+            items = [p for p in items if platform_filter in p.platforms]
+    if q:
+        items = [p for p in items if q in (p.display_name or '').lower()
+                 or q in (p.creator or '').lower()
+                 or any(q in (v.caption or '').lower() for v in p.videos)]
+
+    items = sorted(items, key=_post_sort_key(sort))
+
+    totals = {
+        'posts': len(items),
+        'uploads': sum(len(p.videos) for p in items),
+        'views': sum(p.total_views or 0 for p in items),
+        'engagements': sum(p.total_engagements for p in items),
+        'creators': len({(p.creator_key or p.creator or f'#{p.id}') for p in items}),
+    }
+    totals['engagement_rate'] = (
+        totals['engagements'] / totals['views'] * 100 if totals['views'] else None
+    )
+
+    # Per-platform rollup across the filtered set
+    by_platform = {}
+    for p in items:
+        for v in p.videos:
+            key = v.platform or 'unknown'
+            b = by_platform.setdefault(key, {'uploads': 0, 'views': 0, 'engagements': 0})
+            b['uploads'] += 1
+            b['views'] += v.views or 0
+            b['engagements'] += v.engagements
+    platform_rows = [
+        {'platform': k, 'label': PLATFORM_LABELS.get(k, k.title()), **v,
+         'engagement_rate': (v['engagements'] / v['views'] * 100) if v['views'] else None}
+        for k, v in sorted(by_platform.items(),
+                           key=lambda kv: -kv[1]['views'])
+    ]
+
+    ungrouped = db.session.query(Video).join(
+        CampaignVideo, CampaignVideo.video_id == Video.id
+    ).filter(Video.post_id.is_(None)).distinct().count()
+
+    return render_template(
+        'ugc_posts.html',
+        posts=items, totals=totals, platform_rows=platform_rows,
+        campaigns=Campaign.query.order_by(Campaign.id.desc()).all(),
+        q=q, sort=sort, campaign_filter=campaign_filter,
+        platform_filter=platform_filter, ungrouped=ungrouped,
+    )
+
+
+@app.route('/ugc/<int:id>')
+def ugc_post_detail(id):
+    post = Post.query.get_or_404(id)
+    # Other posts by the same creator, offered as merge targets
+    merge_targets = [
+        p for p in Post.query.filter(Post.id != post.id).all()
+        if p.creator_key and p.creator_key == post.creator_key
+    ]
+    return render_template(
+        'ugc_post_detail.html',
+        post=post,
+        campaigns=Campaign.query.order_by(Campaign.id.desc()).all(),
+        merge_targets=merge_targets,
+        platform_labels=PLATFORM_LABELS,
+    )
+
+
+@app.route('/ugc/new', methods=['GET', 'POST'])
+def ugc_post_new():
+    if request.method == 'GET':
+        return render_template(
+            'ugc_post_new.html',
+            campaigns=Campaign.query.order_by(Campaign.id.desc()).all(),
+        )
+
+    from ingest import extract_video_urls
+    raw = request.form.get('video_urls', '')
+    urls = extract_video_urls(raw) or [u.strip() for u in raw.split('\n') if u.strip()]
+    if not urls:
+        return redirect(url_for('ugc_post_new'))
+
+    campaign_id = request.form.get('campaign_id', '').strip()
+    campaign_id = int(campaign_id) if campaign_id.isdigit() else None
+
+    videos = find_or_create_videos(urls)
+    post = Post(
+        title=request.form.get('title', '').strip() or None,
+        creator=request.form.get('creator', '').strip() or None,
+        notes=request.form.get('notes', '').strip() or None,
+        campaign_id=campaign_id,
+    )
+    post.creator_key = ugc.normalize_handle(post.creator)
+    db.session.add(post)
+    db.session.flush()
+
+    for video in videos:
+        video.post_id = post.id
+        if campaign_id and not CampaignVideo.query.filter_by(
+                campaign_id=campaign_id, video_id=video.id).first():
+            db.session.add(CampaignVideo(campaign_id=campaign_id, video_id=video.id))
+    # Fill in creator/title from whichever upload already has metadata
+    if not post.creator:
+        post.creator = next((v.creator for v in videos if v.creator), None)
+        post.creator_key = ugc.normalize_handle(post.creator)
+    if not post.title:
+        post.title = next((v.title for v in videos if v.title), None)
+    db.session.commit()
+
+    return redirect(url_for('ugc_post_detail', id=post.id))
+
+
+@app.route('/ugc/<int:id>/edit', methods=['POST'])
+def ugc_post_edit(id):
+    post = Post.query.get_or_404(id)
+    if 'title' in request.form:
+        post.title = request.form.get('title', '').strip() or None
+    if 'creator' in request.form:
+        post.creator = request.form.get('creator', '').strip() or None
+        post.creator_key = ugc.normalize_handle(post.creator)
+    if 'notes' in request.form:
+        post.notes = request.form.get('notes', '').strip() or None
+    if 'campaign_id' in request.form:
+        cid = request.form.get('campaign_id', '').strip()
+        post.campaign_id = int(cid) if cid.isdigit() else None
+        # Keep campaign membership consistent with the new assignment
+        if post.campaign_id:
+            for v in post.videos:
+                if not CampaignVideo.query.filter_by(
+                        campaign_id=post.campaign_id, video_id=v.id).first():
+                    cv = CampaignVideo(campaign_id=post.campaign_id, video_id=v.id)
+                    for field in _METRIC_FIELDS:
+                        setattr(cv, field, getattr(v, field))
+                    db.session.add(cv)
+    db.session.commit()
+
+    if request.headers.get('HX-Request'):
+        return '<span class="saved-notice">Saved ✓</span>'
+    return redirect(url_for('ugc_post_detail', id=id))
+
+
+@app.route('/ugc/<int:id>/add-videos', methods=['POST'])
+def ugc_post_add_videos(id):
+    post = Post.query.get_or_404(id)
+    from ingest import extract_video_urls
+    raw = request.form.get('video_urls', '')
+    urls = extract_video_urls(raw) or [u.strip() for u in raw.split('\n') if u.strip()]
+
+    for video in find_or_create_videos(urls):
+        video.post_id = post.id
+        if post.campaign_id and not CampaignVideo.query.filter_by(
+                campaign_id=post.campaign_id, video_id=video.id).first():
+            db.session.add(CampaignVideo(campaign_id=post.campaign_id, video_id=video.id))
+    db.session.commit()
+    ugc.cleanup_empty_posts()
+
+    if request.headers.get('HX-Request'):
+        return '', 204, {'HX-Redirect': url_for('ugc_post_detail', id=id)}
+    return redirect(url_for('ugc_post_detail', id=id))
+
+
+@app.route('/ugc/<int:id>/videos/<int:video_id>/metrics', methods=['POST'])
+def ugc_video_metrics(id, video_id):
+    post = Post.query.get_or_404(id)
+    video = Video.query.get_or_404(video_id)
+    if video.post_id != post.id:
+        abort(404)
+
+    for field in _METRIC_FIELDS:
+        setattr(video, field, _intval(request.form.get(field)))
+    video.metrics_updated_at = datetime.utcnow()
+    # Mirror onto campaign links so campaign totals stay in step
+    for cv in CampaignVideo.query.filter_by(video_id=video.id).all():
+        for field in _METRIC_FIELDS:
+            setattr(cv, field, getattr(video, field))
+    db.session.commit()
+
+    if request.headers.get('HX-Request'):
+        return render_template('ugc_stats_snippet.html', post=post)
+    return redirect(url_for('ugc_post_detail', id=id))
+
+
+@app.route('/ugc/<int:id>/videos/<int:video_id>/unlink', methods=['POST'])
+def ugc_post_unlink(id, video_id):
+    post = Post.query.get_or_404(id)
+    video = Video.query.get_or_404(video_id)
+    if video.post_id == post.id:
+        video.post_id = None
+        db.session.commit()
+    ugc.cleanup_empty_posts()
+
+    if not Post.query.get(id):
+        return redirect(url_for('ugc_posts'))
+    if request.headers.get('HX-Request'):
+        return '', 204, {'HX-Redirect': url_for('ugc_post_detail', id=id)}
+    return redirect(url_for('ugc_post_detail', id=id))
+
+
+@app.route('/ugc/<int:id>/merge', methods=['POST'])
+def ugc_post_merge(id):
+    target = Post.query.get_or_404(id)
+    src_id = request.form.get('source_id', '').strip()
+    if src_id.isdigit():
+        source = Post.query.get(int(src_id))
+        if source:
+            ugc.merge_posts(source, target)
+    return redirect(url_for('ugc_post_detail', id=id))
+
+
+@app.route('/ugc/<int:id>/refresh', methods=['POST'])
+def ugc_post_refresh(id):
+    """Re-scrape metrics for every upload in this post."""
+    post = Post.query.get_or_404(id)
+    video_ids = [v.id for v in post.videos]
+
+    def _refresh(ids):
+        with app.app_context():
+            from ingest import fetch_metadata
+            for vid in ids:
+                v = Video.query.get(vid)
+                if not v:
+                    continue
+                try:
+                    meta = fetch_metadata(v.url)
+                    if meta and 'error' not in meta:
+                        _apply_video_metrics(vid, meta)
+                except Exception as e:
+                    print(f'[ugc] refresh failed for video {vid}: {e}',
+                          file=sys.stderr, flush=True)
+
+    threading.Thread(target=_refresh, args=(video_ids,), daemon=True).start()
+
+    if request.headers.get('HX-Request'):
+        n = len(video_ids)
+        return (f'<span style="font-size:0.78rem; color:var(--text-tertiary);">'
+                f'Refreshing {n} upload{"s" if n != 1 else ""}… reload in ~{max(10, n * 12)}s</span>')
+    return redirect(url_for('ugc_post_detail', id=id))
+
+
+@app.route('/ugc/<int:id>/delete', methods=['POST'])
+def ugc_post_delete(id):
+    post = Post.query.get_or_404(id)
+    for v in post.videos:
+        v.post_id = None
+    db.session.delete(post)
+    db.session.commit()
+    return redirect(url_for('ugc_posts'))
+
+
+@app.route('/ugc/regroup', methods=['POST'])
+def ugc_regroup():
+    """Group campaign videos that aren't in a post yet."""
+    result = ugc.regroup_ungrouped()
+    if request.headers.get('HX-Request'):
+        return ('<span class="saved-notice">'
+                f'Grouped {result["total"]} video{"s" if result["total"] != 1 else ""} '
+                f'into {result["created"]} new post{"s" if result["created"] != 1 else ""} ✓</span>')
+    return redirect(url_for('ugc_posts'))
+
+
+@app.route('/videos/<int:id>/assign-post', methods=['POST'])
+def video_assign_post(id):
+    """Attach a video to a UGC post from the video detail page."""
+    video = Video.query.get_or_404(id)
+    target = request.form.get('post_id', '').strip()
+    if target == 'new':
+        ugc.create_post_for(video)
+    elif target.isdigit():
+        post = Post.query.get(int(target))
+        if post:
+            ugc.attach_to_post(video, post)
+    elif target == '':
+        video.post_id = None
+    db.session.commit()
+    ugc.cleanup_empty_posts()
+    if video.post_id:
+        return redirect(url_for('ugc_post_detail', id=video.post_id))
+    return redirect(url_for('video_detail', id=id))
 
 
 # ---------------------------------------------------------------------------
@@ -1387,6 +1806,7 @@ with app.app_context():
     migrate_db()
     seed_db()
     backfill_campaign_videos()
+    backfill_video_metrics()
 
 threading.Thread(target=_run_backfill_embeds, daemon=True).start()
 threading.Thread(target=_run_backfill_formats, daemon=True).start()

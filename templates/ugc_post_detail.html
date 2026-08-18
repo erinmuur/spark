@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}{{ post.display_name }} — UGC — Spark{% endblock %}
+
+{% block content %}
+<a href="/ugc" style="font-size:0.8rem; text-decoration:none; color:var(--text-secondary);">← All UGC</a>
+
+{# ── Header ── #}
+<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin:0.75rem 0 1.25rem;">
+  <div style="min-width:0;">
+    <h2 style="margin-bottom:0.25rem;">{{ post.display_name }}</h2>
+    <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; font-size:0.82rem; color:var(--text-secondary);">
+      {% if post.creator %}<span>@{{ post.creator }}</span>{% endif %}
+      {% if post.campaign %}
+      <span>·</span>
+      <a href="/campaigns/{{ post.campaign.id }}" style="text-decoration:none;">{{ post.campaign.display_name }}</a>
+      {% endif %}
+      <span>·</span>
+      <span>{{ post.videos|length }} platform{{ 's' if post.videos|length != 1 }}</span>
+    </div>
+  </div>
+  <div style="display:flex; align-items:center; gap:0.5rem; flex-shrink:0;">
+    <span id="refresh-notice"></span>
+    <button type="button" class="outline"
+            hx-post="/ugc/{{ post.id }}/refresh"
+            hx-target="#refresh-notice" hx-swap="innerHTML"
+            title="Re-scrape metrics for every upload">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 4v6a2 2 0 0 0 2 2h10"/><polyline points="13 9 15 12 11 12"/>
+        <path d="M15 12V6a2 2 0 0 0-2-2H3"/><polyline points="3 7 1 4 5 4"/>
+      </svg>
+      Refresh stats
+    </button>
+    <button type="button" class="secondary" onclick="document.getElementById('add-box').scrollIntoView({behavior:'smooth'})">
+      Add platform
+    </button>
+  </div>
+</div>
+
+{# ── Combined totals + share bar ── #}
+<div id="post-stats">
+  {% include 'ugc_stats_snippet.html' %}
+</div>
+
+{# ── Per-platform breakdown ── #}
+{% if post.videos %}
+<h3 style="margin-bottom:0.85rem;">By platform</h3>
+<div class="ugc-platforms">
+  {% for v in post.ordered_videos %}
+  <div class="ugc-platform">
+    <div class="ugc-platform-head">
+      <span class="badge badge-{{ v.platform or 'unknown' }}">{{ v.platform_label }}</span>
+      <span class="spacer"></span>
+      <a href="{{ v.url }}" target="_blank" rel="noopener"
+         style="font-size:0.75rem; text-decoration:none;" title="Open on {{ v.platform_label }}">Open ↗</a>
+      <a href="/videos/{{ v.id }}" style="font-size:0.75rem; text-decoration:none;" title="Video detail">Details</a>
+    </div>
+
+    <div class="ugc-platform-media">
+      {% if v.thumbnail_url %}
+        <img src="/thumbnails/{{ v.id }}" alt="{{ v.title or '' }}" loading="lazy" />
+      {% else %}
+        <div class="placeholder">🎬</div>
+      {% endif %}
+    </div>
+
+    <div class="ugc-platform-body">
+      {% if v.creator %}
+      <div style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.6rem;">@{{ v.creator }}</div>
+      {% endif %}
+
+      {# Read-only stat rows #}
+      <div class="stat-rows" style="margin-bottom:0.75rem;">
+        {% for label, val in [('Views', v.views), ('Likes', v.likes), ('Comments', v.comments),
+                              ('Shares', v.shares), ('Saves', v.saves)] %}
+        <div class="stat-row">
+          <span class="k">{{ label }}</span>
+          <span class="v {% if val is none %}empty{% endif %}">
+            {{ '{:,}'.format(val) if val is not none else '—' }}
+          </span>
+        </div>
+        {% endfor %}
+        <div class="stat-row">
+          <span class="k">Engagement rate</span>
+          <span class="v {% if v.engagement_rate is none %}empty{% endif %}">
+            {{ '%.2f%%' % v.engagement_rate if v.engagement_rate is not none else '—' }}
+          </span>
+        </div>
+        {% if post.total_views and v.views %}
+        <div class="stat-row">
+          <span class="k">Share of views</span>
+          <span class="v">{{ (v.views / post.total_views * 100) | round(1) }}%</span>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if v.metrics_updated_at %}
+      <div style="font-size:0.7rem; color:var(--text-tertiary); margin-bottom:0.6rem;">
+        Updated {{ v.metrics_updated_at.strftime('%b %-d, %Y') }}
+      </div>
+      {% endif %}
+
+      {# Manual metric entry — platforms we can't scrape reliably still need numbers #}
+      <details>
+        <summary style="font-size:0.75rem; color:var(--text-secondary); cursor:pointer;">Edit stats</summary>
+        <form hx-post="/ugc/{{ post.id }}/videos/{{ v.id }}/metrics"
+              hx-target="#post-stats" hx-swap="innerHTML"
+              style="margin-top:0.6rem;">
+          <div class="metric-form">
+            <label>Views <input type="text" inputmode="numeric" name="views" value="{{ v.views if v.views is not none else '' }}" placeholder="—" /></label>
+            <label>Likes <input type="text" inputmode="numeric" name="likes" value="{{ v.likes if v.likes is not none else '' }}" placeholder="—" /></label>
+            <label>Comments <input type="text" inputmode="numeric" name="comments" value="{{ v.comments if v.comments is not none else '' }}" placeholder="—" /></label>
+            <label>Shares <input type="text" inputmode="numeric" name="shares" value="{{ v.shares if v.shares is not none else '' }}" placeholder="—" /></label>
+            <label>Saves <input type="text" inputmode="numeric" name="saves" value="{{ v.saves if v.saves is not none else '' }}" placeholder="—" /></label>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.6rem; margin-top:0.6rem;">
+            <button type="submit" style="height:32px; font-size:0.78rem;">Save</button>
+            <button type="button" class="outline" style="height:32px; font-size:0.78rem;"
+                    hx-post="/ugc/{{ post.id }}/videos/{{ v.id }}/unlink"
+                    hx-confirm="Remove this {{ v.platform_label }} upload from the post? The video itself is kept.">
+              Unlink
+            </button>
+          </div>
+        </form>
+      </details>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── Missing platforms nudge ── #}
+{% if post.missing_platforms %}
+<p style="margin-top:1rem; font-size:0.82rem; color:var(--text-secondary);">
+  Not posted to
+  {% for p in post.missing_platforms %}<strong>{{ platform_labels.get(p, p) }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}
+  yet.
+</p>
+{% endif %}
+
+<hr />
+
+{# ── Add another platform ── #}
+<div id="add-box" style="margin-bottom:2rem;">
+  <h3 style="margin-bottom:0.6rem;">Add a platform version</h3>
+  <form hx-post="/ugc/{{ post.id }}/add-videos" hx-swap="none">
+    <textarea name="video_urls" rows="2"
+              placeholder="Paste the TikTok, Instagram or YouTube link for this same video (one per line)"></textarea>
+    <button type="submit" style="margin-top:0.6rem;">Add to this post</button>
+  </form>
+</div>
+
+{# ── Details ── #}
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items:start;">
+  <div>
+    <h3 style="margin-bottom:0.6rem;">Details</h3>
+    <form hx-post="/ugc/{{ post.id }}/edit" hx-target="#edit-notice" hx-swap="innerHTML">
+      <label>Title
+        <input type="text" name="title" value="{{ post.title or '' }}" placeholder="{{ post.display_name }}" />
+      </label>
+      <label>Creator
+        <input type="text" name="creator" value="{{ post.creator or '' }}" placeholder="handle" />
+      </label>
+      <label>Campaign
+        <select name="campaign_id">
+          <option value="">— none —</option>
+          {% for c in campaigns %}
+          <option value="{{ c.id }}" {% if post.campaign_id == c.id %}selected{% endif %}>{{ c.display_name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Notes
+        <textarea name="notes" rows="4" placeholder="Anything worth remembering about this creative…">{{ post.notes or '' }}</textarea>
+      </label>
+      <div style="display:flex; align-items:center; gap:0.75rem;">
+        <button type="submit">Save</button>
+        <span id="edit-notice"></span>
+      </div>
+    </form>
+  </div>
+
+  <div>
+    {% if merge_targets %}
+    <h3 style="margin-bottom:0.6rem;">Merge another post in</h3>
+    <p style="font-size:0.8rem; color:var(--text-secondary);">
+      Same creator, grouped separately. Merging moves its uploads here.
+    </p>
+    <form method="post" action="/ugc/{{ post.id }}/merge">
+      <select name="source_id">
+        {% for m in merge_targets %}
+        <option value="{{ m.id }}">
+          {{ m.display_name }} ({{ m.platforms|join(', ') or 'no platform' }})
+        </option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="secondary" style="margin-top:0.6rem;">Merge into this post</button>
+    </form>
+    <hr />
+    {% endif %}
+
+    <h3 style="margin-bottom:0.6rem;">Danger zone</h3>
+    <form method="post" action="/ugc/{{ post.id }}/delete"
+          onsubmit="return confirm('Delete this post? The videos themselves are kept and become ungrouped.');">
+      <button type="submit" class="outline" style="color:var(--feedback-error); border-color:var(--feedback-error);">
+        Delete post
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

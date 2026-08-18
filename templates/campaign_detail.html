@@ -97,10 +97,49 @@
   </div>
 </div>
 
+{# ── UGC posts: same creative grouped across platforms ── #}
+{% if campaign.posts %}
+<div class="cd-section-header">
+  <h3 class="cd-section-title">UGC posts</h3>
+  <a href="/ugc?campaign={{ campaign.id }}" style="font-size:0.78rem; text-decoration:none;">View all →</a>
+</div>
+<div class="ugc-grid" style="margin-bottom:2rem;">
+  {% for p in campaign.grouped_posts %}
+  <a href="/ugc/{{ p.id }}" class="ugc-card">
+    {% set thumb = p.thumbnail_video %}
+    {% if thumb and thumb.thumbnail_url %}
+      <img class="ugc-card-thumb" src="/thumbnails/{{ thumb.id }}" alt="" loading="lazy" />
+    {% else %}
+      <div class="ugc-card-thumb placeholder">🎬</div>
+    {% endif %}
+    <div class="ugc-card-body">
+      <div class="plat-dots">
+        {% for plat in p.platforms %}
+        <span class="plat-dot badge-{{ plat }}">{{ plat | platabbr }}</span>
+        {% endfor %}
+        {% for plat in p.missing_platforms %}
+        <span class="plat-dot missing">{{ plat | platabbr }}</span>
+        {% endfor %}
+      </div>
+      <div class="ugc-card-title">{{ p.display_name }}</div>
+      {% if p.creator %}<div class="ugc-card-creator">@{{ p.creator }}</div>{% endif %}
+      <div class="ugc-card-stats">
+        <span><b>{{ p.total_views | humannum if p.total_views else '—' }}</b> views</span>
+        <span><b>{{ p.total_engagements | humannum if p.total_engagements else '—' }}</b> eng.</span>
+        {% if p.engagement_rate is not none %}
+        <span><b>{{ '%.1f%%' % p.engagement_rate }}</b> ER</span>
+        {% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
 {# ── Video grid ── #}
 {% if campaign.campaign_videos %}
 <div class="cd-section-header">
-  <h3 class="cd-section-title">Videos</h3>
+  <h3 class="cd-section-title">{% if campaign.posts %}All videos{% else %}Videos{% endif %}</h3>
   <div style="display:flex; align-items:center; gap:8px;">
     <button type="button" class="cd-sort-btn"
             hx-post="/campaigns/{{ campaign.id }}/reclassify"
@@ -149,11 +188,11 @@
 <div class="cd-grid" id="cv-grid">
   {% for cv in campaign.campaign_videos %}
   <div class="cd-card"
-       data-views="{{ cv.views or 0 }}"
-       data-likes="{{ cv.likes or 0 }}"
-       data-comments="{{ cv.comments or 0 }}"
-       data-shares="{{ cv.shares or 0 }}"
-       data-saves="{{ cv.saves or 0 }}"
+       data-views="{{ cv.metric('views') or 0 }}"
+       data-likes="{{ cv.metric('likes') or 0 }}"
+       data-comments="{{ cv.metric('comments') or 0 }}"
+       data-shares="{{ cv.metric('shares') or 0 }}"
+       data-saves="{{ cv.metric('saves') or 0 }}"
        data-added="{{ loop.index }}"
        onclick="window.location='/videos/{{ cv.video.id }}'"
        style="cursor:pointer;">
@@ -186,13 +225,13 @@
       {% endif %}
 
       {# Inline metrics #}
-      {% if cv.views or cv.likes or cv.comments or cv.shares or cv.saves %}
+      {% if cv.metric('views') or cv.metric('likes') or cv.metric('comments') or cv.metric('shares') or cv.metric('saves') %}
       <div class="cd-card-stats">
-        {% if cv.views %}<span title="Views"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5S1 8 1 8z"/><circle cx="8" cy="8" r="2"/></svg> {{ '{:,}'.format(cv.views) }}</span>{% endif %}
-        {% if cv.likes %}<span title="Likes"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 14s-5.5-3.5-5.5-7A3 3 0 0 1 8 4.5 3 3 0 0 1 13.5 7C13.5 10.5 8 14 8 14z"/></svg> {{ '{:,}'.format(cv.likes) }}</span>{% endif %}
-        {% if cv.comments %}<span title="Comments"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12v8H5l-3 3V3z"/></svg> {{ '{:,}'.format(cv.comments) }}</span>{% endif %}
-        {% if cv.shares %}<span title="Shares"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 9v5m8-8l-4-4-4 4m4-4v9"/></svg> {{ '{:,}'.format(cv.shares) }}</span>{% endif %}
-        {% if cv.saves %}<span title="Saves"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h10v13l-5-3-5 3V2z"/></svg> {{ '{:,}'.format(cv.saves) }}</span>{% endif %}
+        {% if cv.metric('views') %}<span title="Views"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5S1 8 1 8z"/><circle cx="8" cy="8" r="2"/></svg> {{ '{:,}'.format(cv.metric('views')) }}</span>{% endif %}
+        {% if cv.metric('likes') %}<span title="Likes"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 14s-5.5-3.5-5.5-7A3 3 0 0 1 8 4.5 3 3 0 0 1 13.5 7C13.5 10.5 8 14 8 14z"/></svg> {{ '{:,}'.format(cv.metric('likes')) }}</span>{% endif %}
+        {% if cv.metric('comments') %}<span title="Comments"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12v8H5l-3 3V3z"/></svg> {{ '{:,}'.format(cv.metric('comments')) }}</span>{% endif %}
+        {% if cv.metric('shares') %}<span title="Shares"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 9v5m8-8l-4-4-4 4m4-4v9"/></svg> {{ '{:,}'.format(cv.metric('shares')) }}</span>{% endif %}
+        {% if cv.metric('saves') %}<span title="Saves"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h10v13l-5-3-5 3V2z"/></svg> {{ '{:,}'.format(cv.metric('saves')) }}</span>{% endif %}
       </div>
       {% endif %}
 
@@ -204,11 +243,11 @@
               hx-swap="innerHTML"
               class="cd-metrics-form">
           <div class="cd-metrics-row">
-            <label>Views <input type="number" name="views" value="{{ cv.views or '' }}" placeholder="0" min="0" /></label>
-            <label>Likes <input type="number" name="likes" value="{{ cv.likes or '' }}" placeholder="0" min="0" /></label>
-            <label>Comments <input type="number" name="comments" value="{{ cv.comments or '' }}" placeholder="0" min="0" /></label>
-            <label>Shares <input type="number" name="shares" value="{{ cv.shares or '' }}" placeholder="0" min="0" /></label>
-            <label>Saves <input type="number" name="saves" value="{{ cv.saves or '' }}" placeholder="0" min="0" /></label>
+            <label>Views <input type="number" name="views" value="{{ cv.metric('views') or '' }}" placeholder="0" min="0" /></label>
+            <label>Likes <input type="number" name="likes" value="{{ cv.metric('likes') or '' }}" placeholder="0" min="0" /></label>
+            <label>Comments <input type="number" name="comments" value="{{ cv.metric('comments') or '' }}" placeholder="0" min="0" /></label>
+            <label>Shares <input type="number" name="shares" value="{{ cv.metric('shares') or '' }}" placeholder="0" min="0" /></label>
+            <label>Saves <input type="number" name="saves" value="{{ cv.metric('saves') or '' }}" placeholder="0" min="0" /></label>
           </div>
           <div style="display:flex; align-items:center; gap:0.5rem;">
             <button type="submit" class="cd-save-btn">Save</button>

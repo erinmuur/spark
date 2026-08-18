@@ -15,10 +15,31 @@ class Framework(db.Model):
     videos = db.relationship('Video', backref='framework', lazy=True)
 
 
+PLATFORM_ORDER = ['tiktok', 'instagram', 'youtube', 'twitter', 'unknown']
+PLATFORM_LABELS = {
+    'tiktok': 'TikTok',
+    'instagram': 'Instagram',
+    'youtube': 'YouTube',
+    'twitter': 'X',
+    'unknown': 'Other',
+}
+PLATFORM_ABBR = {
+    'tiktok': 'TT',
+    'instagram': 'IG',
+    'youtube': 'YT',
+    'twitter': 'X',
+    'unknown': '?',
+}
+
+
+def platform_abbr(platform):
+    return PLATFORM_ABBR.get(platform, (platform or '?')[:2].upper())
+
+
 class Video(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     url = db.Column(db.String, nullable=False, unique=True)
-    platform = db.Column(db.String(50))   # tiktok, instagram, twitter
+    platform = db.Column(db.String(50))   # tiktok, instagram, youtube, twitter
     creator = db.Column(db.String(200))
     title = db.Column(db.String(500))
     caption = db.Column(db.Text)
@@ -42,7 +63,146 @@ class Video(db.Model):
     tribe_status = db.Column(db.String(50))  # idle / running / done / error:...
     comments_json = db.Column(db.Text)       # JSON array of top comments [{text, likes, username}, ...]
 
+    # Canonical per-upload metrics. A view count belongs to the upload, not to
+    # whichever campaign happens to reference it, so these live here and get
+    # mirrored onto CampaignVideo rows for the legacy campaign totals.
+    views = db.Column(db.Integer)
+    likes = db.Column(db.Integer)
+    comments = db.Column(db.Integer)
+    shares = db.Column(db.Integer)
+    saves = db.Column(db.Integer)
+    metrics_updated_at = db.Column(db.DateTime)
+
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
+
     campaigns = db.relationship('Campaign', backref='video', lazy=True, cascade='all, delete-orphan')
+
+    @property
+    def platform_label(self):
+        return PLATFORM_LABELS.get(self.platform, (self.platform or 'Other').title())
+
+    @property
+    def engagements(self):
+        """Likes + comments + shares + saves — the interaction total."""
+        return sum(v or 0 for v in (self.likes, self.comments, self.shares, self.saves))
+
+    @property
+    def engagement_rate(self):
+        """Engagements as a percentage of views, or None if views are unknown."""
+        if not self.views:
+            return None
+        return self.engagements / self.views * 100
+
+    @property
+    def has_metrics(self):
+        return any(v is not None for v in
+                   (self.views, self.likes, self.comments, self.shares, self.saves))
+
+
+class Post(db.Model):
+    """One piece of UGC creative, published to one or more platforms.
+
+    Creators typically upload the same video to TikTok, Instagram and (less
+    often) YouTube. Each upload is its own Video row; the Post groups them so
+    performance can be read as one creative with a per-platform breakdown.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(500))
+    creator = db.Column(db.String(200))
+    creator_key = db.Column(db.String(200))   # normalized handle, used for auto-grouping
+    campaign_id = db.Column(db.Integer, db.ForeignKey('campaign.id'))
+    notes = db.Column(db.Text)
+    posted_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    videos = db.relationship(
+        'Video', backref=db.backref('post', lazy=True),
+        lazy=True, order_by='Video.id',
+    )
+    campaign = db.relationship('Campaign', backref=db.backref('posts', lazy=True))
+
+    @property
+    def display_name(self):
+        if self.title:
+            return self.title
+        for v in self.videos:
+            if v.title:
+                return v.title
+        if self.creator:
+            return f'@{self.creator}'
+        return f'Post #{self.id}'
+
+    @property
+    def ordered_videos(self):
+        """Videos in a stable platform order so columns don't shuffle between loads."""
+        return sorted(
+            self.videos,
+            key=lambda v: (PLATFORM_ORDER.index(v.platform)
+                           if v.platform in PLATFORM_ORDER else len(PLATFORM_ORDER), v.id)
+        )
+
+    @property
+    def platforms(self):
+        seen = []
+        for v in self.ordered_videos:
+            if v.platform and v.platform not in seen:
+                seen.append(v.platform)
+        return seen
+
+    @property
+    def missing_platforms(self):
+        """Core platforms this creative hasn't been posted to yet."""
+        return [p for p in ('tiktok', 'instagram', 'youtube') if p not in self.platforms]
+
+    def _total(self, field):
+        vals = [getattr(v, field) for v in self.videos]
+        vals = [v for v in vals if v is not None]
+        return sum(vals) if vals else None
+
+    @property
+    def total_views(self):
+        return self._total('views')
+
+    @property
+    def total_likes(self):
+        return self._total('likes')
+
+    @property
+    def total_comments(self):
+        return self._total('comments')
+
+    @property
+    def total_shares(self):
+        return self._total('shares')
+
+    @property
+    def total_saves(self):
+        return self._total('saves')
+
+    @property
+    def total_engagements(self):
+        return sum(v.engagements for v in self.videos)
+
+    @property
+    def engagement_rate(self):
+        views = self.total_views
+        if not views:
+            return None
+        return self.total_engagements / views * 100
+
+    @property
+    def top_video(self):
+        """The platform upload with the most views."""
+        scored = [v for v in self.videos if v.views]
+        return max(scored, key=lambda v: v.views) if scored else None
+
+    @property
+    def thumbnail_video(self):
+        """Preferred video for the card thumbnail — first one that has an image."""
+        for v in self.ordered_videos:
+            if v.thumbnail_url:
+                return v
+        return self.videos[0] if self.videos else None
 
 
 class Product(db.Model):
@@ -75,6 +235,13 @@ class CampaignVideo(db.Model):
 
     __table_args__ = (db.UniqueConstraint('campaign_id', 'video_id', name='uq_campaign_video'),)
 
+    def metric(self, field):
+        """Campaign-local override if set, otherwise the video's canonical metric."""
+        own = getattr(self, field)
+        if own is not None:
+            return own
+        return getattr(self.video, field, None) if self.video else None
+
 
 class Campaign(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -100,25 +267,38 @@ class Campaign(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    def _total(self, field):
+        return sum(cv.metric(field) or 0 for cv in self.campaign_videos)
+
     @property
     def total_views(self):
-        return sum(cv.views or 0 for cv in self.campaign_videos)
+        return self._total('views')
 
     @property
     def total_likes(self):
-        return sum(cv.likes or 0 for cv in self.campaign_videos)
+        return self._total('likes')
 
     @property
     def total_comments(self):
-        return sum(cv.comments or 0 for cv in self.campaign_videos)
+        return self._total('comments')
 
     @property
     def total_shares(self):
-        return sum(cv.shares or 0 for cv in self.campaign_videos)
+        return self._total('shares')
 
     @property
     def total_saves(self):
-        return sum(cv.saves or 0 for cv in self.campaign_videos)
+        return self._total('saves')
+
+    @property
+    def grouped_posts(self):
+        """UGC posts for this campaign, best-performing first."""
+        return sorted(self.posts, key=lambda p: p.total_views or 0, reverse=True)
+
+    @property
+    def loose_videos(self):
+        """Campaign videos not yet grouped into a UGC post."""
+        return [cv.video for cv in self.campaign_videos if cv.video and not cv.video.post_id]
 
     @property
     def display_name(self):

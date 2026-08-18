@@ -15,6 +15,9 @@ VIDEO_URL_PATTERNS = [
     r'https?://(?:www\.)?instagram\.com/(?:reel|p)/[^\s>/]+[^\s>]*',
     r'https?://(?:www\.)?twitter\.com/\w+/status/\d+[^\s>]*',
     r'https?://(?:www\.)?x\.com/\w+/status/\d+[^\s>]*',
+    r'https?://(?:www\.)?youtube\.com/shorts/[\w-]+[^\s>]*',
+    r'https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+[^\s>]*',
+    r'https?://youtu\.be/[\w-]+[^\s>]*',
 ]
 
 _whisper_model = None
@@ -35,6 +38,8 @@ def detect_platform(url):
         return 'instagram'
     elif 'twitter.com' in url or 'x.com' in url:
         return 'twitter'
+    elif 'youtube.com' in url or 'youtu.be' in url:
+        return 'youtube'
     return 'unknown'
 
 
@@ -136,11 +141,18 @@ def _fetch_tiktok_via_apify(url):
 
 
 def _clean_url(url):
-    """Strip tracking query params from TikTok/Instagram URLs that break extractors."""
+    """Strip tracking query params from URLs that break extractors or defeat dedupe."""
     from urllib.parse import urlparse, urlunparse
     parsed = urlparse(url)
     if 'tiktok.com' in parsed.netloc or 'instagram.com' in parsed.netloc:
         return urlunparse(parsed._replace(query='', fragment=''))
+    if 'youtu.be' in parsed.netloc or 'youtube.com' in parsed.netloc:
+        # youtu.be, /shorts/ and /watch?v= are three spellings of one video, and
+        # the share button hands out different ones per surface. Collapse them
+        # all to the watch URL so the same upload can't land as two rows.
+        vid = youtube_id(url)
+        if vid:
+            return f'https://www.youtube.com/watch?v={vid}'
     return url
 
 
@@ -471,7 +483,24 @@ def fetch_oembed(url, platform):
                 f'<script async src="https://www.tiktok.com/embed.js"></script>'
             )
 
+    elif platform == 'youtube':
+        # Build the iframe directly — YouTube's oEmbed returns a fixed-size player
+        vid = youtube_id(url)
+        if vid:
+            return (
+                f'<iframe src="https://www.youtube.com/embed/{vid}" '
+                f'style="width:100%;aspect-ratio:9/16;border:0;border-radius:12px;" '
+                f'allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture" '
+                f'allowfullscreen loading="lazy"></iframe>'
+            )
+
     return None
+
+
+def youtube_id(url):
+    """Extract the 11-char video id from any YouTube URL form."""
+    m = re.search(r'(?:youtu\.be/|/shorts/|/embed/|[?&]v=)([\w-]{11})', url or '')
+    return m.group(1) if m else None
 
 
 def fetch_rich_content(url, duration=None):

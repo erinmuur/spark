@@ -289,7 +289,197 @@
     .badge-tiktok    { background: var(--surface-inverse); color: var(--surface-primary); }
     .badge-instagram { background: linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); color: #fff; }
     .badge-twitter   { background: var(--surface-inverse); color: var(--surface-primary); }
+    .badge-youtube   { background: #ff0033; color: #fff; }
     .badge-unknown   { background: var(--surface-tertiary); color: var(--text-tertiary); }
+
+    /* ── UGC posts ── */
+    .ugc-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1px;
+      background: var(--panel-border);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    .ugc-summary .tile { background: var(--panel-bg); padding: 1rem 1.15rem; }
+    .ugc-summary .tile-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-tertiary);
+      margin-bottom: 0.3rem;
+    }
+    .ugc-summary .tile-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .ugc-summary .tile-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.15rem; }
+
+    /* Post cards */
+    .ugc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.25rem;
+    }
+    .ugc-card {
+      display: flex;
+      gap: 0.9rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius-card);
+      padding: 0.9rem;
+      box-shadow: var(--shadow-100);
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.1s;
+    }
+    .ugc-card:hover {
+      border-color: var(--border-default);
+      box-shadow: var(--shadow-200);
+      transform: translateY(-1px);
+    }
+    .ugc-card-thumb {
+      width: 74px;
+      flex-shrink: 0;
+      aspect-ratio: 9/16;
+      border-radius: 12px;
+      object-fit: cover;
+      background: var(--surface-tertiary);
+    }
+    .ugc-card-thumb.placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-tertiary);
+      font-size: 1.4rem;
+    }
+    .ugc-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+    .ugc-card-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .ugc-card-creator { font-size: 0.78rem; color: var(--text-secondary); }
+    .ugc-card-stats {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: auto;
+      padding-top: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .ugc-card-stats b { color: var(--text-primary); font-weight: 600; }
+
+    /* Platform dots on a card */
+    .plat-dots { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+    .plat-dot {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 18px;
+      padding: 0 7px;
+      border-radius: 999px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .plat-dot.missing {
+      background: transparent;
+      color: var(--text-tertiary);
+      border: 1px dashed var(--border-default);
+      font-weight: 500;
+    }
+
+    /* Post detail: per-platform columns */
+    .ugc-platforms {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      align-items: start;
+    }
+    .ugc-platform {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      box-shadow: var(--shadow-100);
+    }
+    .ugc-platform-head {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.8rem 1rem;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .ugc-platform-head .spacer { flex: 1; }
+    /* Full-width band; the 9:16 frame is centred inside it, letterboxed. A
+       vertical video at full card width would be ~840px tall, hence the cap. */
+    .ugc-platform-media {
+      background: var(--surface-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .ugc-platform-media img,
+    .ugc-platform-media .placeholder {
+      aspect-ratio: 9/16;
+      height: 420px;
+      max-width: 100%;
+      object-fit: cover;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ugc-platform-media .placeholder { color: var(--text-tertiary); font-size: 2rem; }
+    .ugc-platform-body { padding: 0.9rem 1rem 1rem; }
+
+    .stat-rows { display: flex; flex-direction: column; gap: 1px; background: var(--panel-border); border-radius: 12px; overflow: hidden; }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      background: var(--panel-bg);
+      padding: 0.45rem 0.7rem;
+      font-size: 0.8rem;
+    }
+    .stat-row .k { color: var(--text-secondary); }
+    .stat-row .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .stat-row .v.empty { color: var(--text-tertiary); font-weight: 400; }
+
+    /* Share-of-total bar */
+    .share-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-tertiary); }
+    .share-seg { height: 100%; }
+    .share-seg.tiktok { background: #25f4ee; }
+    .share-seg.instagram { background: linear-gradient(135deg,#f09433,#dc2743,#bc1888); }
+    .share-seg.youtube { background: #ff0033; }
+    .share-seg.twitter { background: #71767b; }
+    .share-seg.unknown { background: var(--text-tertiary); }
+    .share-legend { display: flex; gap: 0.9rem; flex-wrap: wrap; font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem; }
+    .share-key { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
+
+    .metric-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 0.5rem; }
+    .metric-form label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); margin-bottom: 0; }
+    .metric-form input { height: 34px; font-size: 0.8rem; padding: 0 10px; border-radius: 10px; }
+
+    .ugc-empty {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      background: var(--panel-bg);
+      border: 1px dashed var(--border-default);
+      border-radius: var(--radius-card);
+      color: var(--text-secondary);
+    }
 
     /* Status badges */
     .status-drafting { background: rgba(251,191,36,0.12); color: #d97706; }
@@ -519,6 +709,7 @@
     <a class="brand" href="/">⚡ Spark</a>
     <a href="/" class="{% if request.endpoint == 'inspo' %}active{% endif %}">Inspo</a>
     <a href="/campaigns" class="{% if request.endpoint in ['campaigns', 'campaign_detail', 'campaign_create_form'] %}active{% endif %}">Campaigns</a>
+    <a href="/ugc" class="{% if request.endpoint in ['ugc_posts', 'ugc_post_detail', 'ugc_post_new'] %}active{% endif %}">UGC</a>
     <a href="/analytics" class="{% if request.endpoint in ['analytics', 'analytics_frameworks', 'analytics_creators'] %}active{% endif %}">Analytics</a>
     <a href="/settings" class="{% if request.endpoint == 'settings' %}active{% endif %}">Settings</a>
     <span class="nav-spacer"></span>
