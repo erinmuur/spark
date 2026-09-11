@@ -17,6 +17,11 @@
       <span>{{ campaign.campaign_videos|length }} video{{ 's' if campaign.campaign_videos|length != 1 }}</span>
       <span class="cd-dot"></span>
       <span>{{ campaign.created_at.strftime('%b %d, %Y') }}</span>
+      <span class="cd-dot"></span>
+      <form method="post" action="/campaigns/{{ campaign.id }}/delete" style="display:inline; margin:0;"
+            onsubmit="return confirm('Delete this campaign and its brief? Its videos and UGC posts stay in Spark.');">
+        <button type="submit" class="cd-remove-btn" style="display:inline; margin:0;">Delete campaign</button>
+      </form>
     </div>
     {% if campaign.description %}
     <div class="cd-desc">{{ campaign.description }}</div>
