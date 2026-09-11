@@ -4,8 +4,12 @@ import json
 import glob
 import base64
 import subprocess
+import sys
 import tempfile
+import logging
 import yt_dlp
+
+logger = logging.getLogger(__name__)
 
 
 VIDEO_URL_PATTERNS = [
@@ -65,8 +69,10 @@ def extract_video_urls(text):
 
 def _fetch_via_subprocess(url):
     """Use yt-dlp CLI in a subprocess — avoids in-process TikTok extraction bugs."""
+    # Run the yt-dlp installed alongside this interpreter — a bare `yt-dlp`
+    # depends on PATH and silently falls through to paid Apify when missing
     result = subprocess.run(
-        ['yt-dlp', '--dump-json', '--skip-download', '--no-warnings',
+        [sys.executable, '-m', 'yt_dlp', '--dump-json', '--skip-download', '--no-warnings',
          '--extractor-args', 'tiktok:api_hostname=api22-normal-c-alisg.tiktokv.com',
          url],
         capture_output=True, text=True, timeout=30
@@ -156,10 +162,19 @@ def _clean_url(url):
     return url
 
 
-def fetch_metadata(url):
-    """Fetch video metadata via yt-dlp without downloading. Returns a dict."""
+def fetch_metadata(url, for_refresh=False):
+    """Fetch video metadata via yt-dlp without downloading. Returns a dict.
+
+    for_refresh: only the engagement numbers are needed (a scheduled re-scrape),
+    so skip the paid Apify calls that exist just for thumbnails and followers.
+    """
     import time as _time
     url = _clean_url(url)
+
+    if 'instagram.com' in url:
+        # yt-dlp needs a logged-in session for Instagram and always fails from
+        # the server, so go straight to Apify (then a bare HTML scrape).
+        return _scrape_instagram_meta(url) or {'error': 'instagram fetch failed'}
 
     is_tiktok = 'tiktok.com' in url
     max_attempts = 3 if is_tiktok else 1
@@ -234,11 +249,14 @@ def fetch_metadata(url):
         if url_match:
             creator = url_match.group(1)
 
-    save_count = info.get('digg_count') or info.get('favorite_count')
+    # yt-dlp reports TikTok saves as save_count; the other two are older spellings
+    save_count = _first_present(info, ('save_count', 'digg_count', 'favorite_count'))
 
-    follower_count = None
-    # For TikTok, try Apify to fill in missing thumbnail, saves, and follower count
-    if is_tiktok and (not thumbnail or save_count is None or follower_count is None):
+    follower_count = info.get('channel_follower_count')
+    # For TikTok, Apify fills in whatever yt-dlp missed. A refresh only needs saves.
+    needs_apify = save_count is None or (
+        not for_refresh and (not thumbnail or follower_count is None))
+    if is_tiktok and needs_apify:
         apify_data = _fetch_tiktok_via_apify(url)
         if apify_data:
             if not thumbnail and apify_data.get('thumbnail_url'):
@@ -284,26 +302,65 @@ def fetch_metadata(url):
     }
 
 
-def _fetch_instagram_via_apify(url):
-    """Fetch Instagram post data via Apify scraper. Returns dict or None."""
+_IG_SHARE_KEYS = ('sharesCount', 'shareCount', 'videoShareCount', 'reshareCount', 'repostsCount')
+
+
+def _first_present(d, keys):
+    """First non-None value among keys — unlike `or`, keeps a genuine 0."""
+    for k in keys:
+        if d.get(k) is not None:
+            return d[k]
+    return None
+
+
+def _apify_first_item(actor, run_input, timeout_secs=120):
+    """Run an Apify actor and return its first dataset item, or None."""
     api_token = os.environ.get('APIFY_API_TOKEN')
     if not api_token:
         return None
+    from apify_client import ApifyClient
+    client = ApifyClient(api_token)
+    # logger=None keeps the actor's own log (dozens of lines per run) out of ours
+    run = client.actor(actor).call(run_input=run_input, timeout_secs=timeout_secs, logger=None)
+    if not run or run.get('status') != 'SUCCEEDED':
+        return None
+    items = list(client.dataset(run['defaultDatasetId']).iterate_items())
+    return items[0] if items else None
+
+
+def _fetch_instagram_via_apify(url):
+    """Fetch Instagram post data via Apify scrapers. Returns dict or None.
+
+    Share counts only come from the reel scraper, and only on a paid Apify
+    plan — includeSharesCount is ignored on the free plan. Reel links go there
+    first; /p/ links go through the general scraper (which also handles photo
+    and carousel posts) and borrow the reel scraper's numbers if the post
+    turns out to be a video.
+    """
     try:
-        from apify_client import ApifyClient
-        client = ApifyClient(api_token)
-        run_input = {
-            'directUrls': [url],
-            'resultsLimit': 1,
-            'resultsType': 'posts',
-        }
-        run = client.actor('apify/instagram-scraper').call(run_input=run_input, timeout_secs=60)
-        if run.get('status') != 'SUCCEEDED':
+        reel_input = {'username': [url], 'resultsLimit': 1, 'includeSharesCount': True}
+        item = None
+        if '/reel/' in url or '/reels/' in url:
+            item = _apify_first_item('apify/instagram-reel-scraper', reel_input)
+        if not item:
+            item = _apify_first_item('apify/instagram-scraper', {
+                'directUrls': [url], 'resultsLimit': 1, 'resultsType': 'posts',
+            })
+            if item and item.get('type') == 'Video' and _first_present(item, _IG_SHARE_KEYS) is None:
+                reel = _apify_first_item('apify/instagram-reel-scraper', reel_input)
+                if reel:
+                    item = {**item, **{k: v for k, v in reel.items() if v is not None}}
+        if not item:
             return None
-        items = list(client.dataset(run['defaultDatasetId']).iterate_items())
-        if not items:
-            return None
-        item = items[0]
+
+        # Plays is the number Instagram shows as "views"; videoViewCount is the
+        # retired 3-second metric and now comes back null.
+        views = _first_present(item, ('videoPlayCount', 'videoViewCount'))
+        shares = _first_present(item, _IG_SHARE_KEYS)
+        if item.get('type') == 'Video' and shares is None:
+            # Expected on the free plan. On a paid plan this names the real key
+            # if Apify spells it differently from _IG_SHARE_KEYS.
+            logger.info(f'Instagram share count missing for {url}; item keys: {sorted(item)}')
 
         # Build embed HTML
         shortcode = item.get('shortCode', '')
@@ -314,33 +371,35 @@ def _fetch_instagram_via_apify(url):
         ) if shortcode else ''
 
         return {
-            'title': item.get('caption', '')[:120] or 'Instagram post',
+            'title': (item.get('caption') or '')[:120] or 'Instagram post',
             'creator': item.get('ownerUsername', ''),
             'caption': item.get('caption', ''),
             'thumbnail_url': item.get('displayUrl', ''),
             'duration': item.get('videoDuration') or 0,
             'platform': 'instagram',
-            'view_count': item.get('videoViewCount') or item.get('videoPlayCount'),
+            'view_count': views,
             'like_count': item.get('likesCount'),
             'comment_count': item.get('commentsCount'),
-            'share_count': item.get('sharesCount') or item.get('reshareCount') or item.get('repostsCount'),
-            'save_count': None,
+            'share_count': shares,
+            'save_count': None,  # Instagram never makes saves public
             'follower_count': item.get('ownerFollowersCount') or item.get('followersCount'),
             'embed_html': embed_html,
             'raw': json.dumps({
-                'title': item.get('caption', '')[:120],
+                'title': (item.get('caption') or '')[:120],
                 'uploader': item.get('ownerUsername'),
                 'description': item.get('caption'),
                 'type': item.get('type'),
-                'view_count': item.get('videoViewCount') or item.get('videoPlayCount'),
+                'view_count': views,
                 'like_count': item.get('likesCount'),
                 'comment_count': item.get('commentsCount'),
+                'repost_count': shares,
                 'timestamp': item.get('timestamp'),
                 'shortCode': shortcode,
                 'source': 'apify',
             }, default=str),
         }
-    except Exception:
+    except Exception as e:
+        logger.warning(f'Instagram Apify fetch failed for {url}: {e}')
         return None
 
 

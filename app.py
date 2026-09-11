@@ -635,6 +635,14 @@ def admin_backfill_followers():
     return jsonify({'queued': len(ids), 'message': 'Backfill running in background'})
 
 
+@app.route('/admin/refresh-metrics', methods=['POST'])
+def admin_refresh_metrics():
+    """Run one scheduled-refresh pass now, in the background (see refresh.py)."""
+    import refresh
+    threading.Thread(target=refresh.run_pass, daemon=True).start()
+    return jsonify({'started': True})
+
+
 @app.route('/admin/fix-thumbnail/<int:video_id>', methods=['POST'])
 def admin_fix_thumbnail(video_id):
     """Re-fetch thumbnail for a specific video via fresh metadata call."""
@@ -1668,7 +1676,7 @@ def ugc_post_refresh(id):
                 if not v:
                     continue
                 try:
-                    meta = fetch_metadata(v.url)
+                    meta = fetch_metadata(v.url, for_refresh=True)
                     if meta and 'error' not in meta:
                         _apply_video_metrics(vid, meta)
                 except Exception as e:

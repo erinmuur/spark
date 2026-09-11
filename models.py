@@ -32,6 +32,16 @@ PLATFORM_ABBR = {
 }
 
 
+# Metrics each platform makes public. Anything else only the creator sees, in
+# their own insights, so it has to be entered by hand.
+PUBLIC_METRICS = {
+    'tiktok': {'views', 'likes', 'comments', 'shares', 'saves'},
+    'instagram': {'views', 'likes', 'comments', 'shares'},  # shares need a paid Apify plan
+    'youtube': {'views', 'likes', 'comments'},
+    'twitter': {'views', 'likes', 'comments', 'shares'},
+}
+
+
 def platform_abbr(platform):
     return PLATFORM_ABBR.get(platform, (platform or '?')[:2].upper())
 
@@ -94,6 +104,21 @@ class Video(db.Model):
     def has_metrics(self):
         return any(v is not None for v in
                    (self.views, self.likes, self.comments, self.shares, self.saves))
+
+    def metric_is_public(self, field):
+        """Whether the platform exposes this metric to scrapers at all."""
+        public = PUBLIC_METRICS.get(self.platform)
+        return True if public is None else field in public
+
+    @property
+    def is_photo_post(self):
+        """Instagram photo/carousel post — these have no view count."""
+        import json
+        try:
+            raw = json.loads(self.raw_metadata or '{}')
+        except (json.JSONDecodeError, TypeError):
+            return False
+        return raw.get('type') in ('Image', 'Sidecar')
 
 
 class Post(db.Model):
