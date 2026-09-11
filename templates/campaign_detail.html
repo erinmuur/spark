@@ -235,7 +235,7 @@
         {% if cv.metric('views') %}<span title="Views"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5S1 8 1 8z"/><circle cx="8" cy="8" r="2"/></svg> {{ '{:,}'.format(cv.metric('views')) }}</span>{% endif %}
         {% if cv.metric('likes') %}<span title="Likes"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 14s-5.5-3.5-5.5-7A3 3 0 0 1 8 4.5 3 3 0 0 1 13.5 7C13.5 10.5 8 14 8 14z"/></svg> {{ '{:,}'.format(cv.metric('likes')) }}</span>{% endif %}
         {% if cv.metric('comments') %}<span title="Comments"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12v8H5l-3 3V3z"/></svg> {{ '{:,}'.format(cv.metric('comments')) }}</span>{% endif %}
-        {% if cv.metric('shares') %}<span title="Shares"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 9v5m8-8l-4-4-4 4m4-4v9"/></svg> {{ '{:,}'.format(cv.metric('shares')) }}</span>{% endif %}
+        {% if cv.metric('shares') %}<span title="Shares / reposts"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 9v5m8-8l-4-4-4 4m4-4v9"/></svg> {{ '{:,}'.format(cv.metric('shares')) }}</span>{% endif %}
         {% if cv.metric('saves') %}<span title="Saves"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h10v13l-5-3-5 3V2z"/></svg> {{ '{:,}'.format(cv.metric('saves')) }}</span>{% endif %}
       </div>
       {% endif %}
@@ -251,7 +251,7 @@
             <label>Views <input type="number" name="views" value="{{ cv.metric('views') or '' }}" placeholder="0" min="0" /></label>
             <label>Likes <input type="number" name="likes" value="{{ cv.metric('likes') or '' }}" placeholder="0" min="0" /></label>
             <label>Comments <input type="number" name="comments" value="{{ cv.metric('comments') or '' }}" placeholder="0" min="0" /></label>
-            <label>Shares <input type="number" name="shares" value="{{ cv.metric('shares') or '' }}" placeholder="0" min="0" /></label>
+            <label>Shares / reposts <input type="number" name="shares" value="{{ cv.metric('shares') or '' }}" placeholder="0" min="0" /></label>
             <label>Saves <input type="number" name="saves" value="{{ cv.metric('saves') or '' }}" placeholder="0" min="0" /></label>
           </div>
           <div style="display:flex; align-items:center; gap:0.5rem;">

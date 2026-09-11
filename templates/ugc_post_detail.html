@@ -70,13 +70,20 @@
 
       {# Read-only stat rows #}
       <div class="stat-rows" style="margin-bottom:0.75rem;">
-        {% for label, val in [('Views', v.views), ('Likes', v.likes), ('Comments', v.comments),
-                              ('Shares', v.shares), ('Saves', v.saves)] %}
+        {% for label, field in [('Views', 'views'), ('Likes', 'likes'), ('Comments', 'comments'),
+                                ('Shares / reposts', 'shares'), ('Saves', 'saves')] %}
+        {% set val = v[field] %}
         <div class="stat-row">
           <span class="k">{{ label }}</span>
-          <span class="v {% if val is none %}empty{% endif %}">
-            {{ '{:,}'.format(val) if val is not none else '—' }}
-          </span>
+          {% if val is not none %}
+          <span class="v">{{ '{:,}'.format(val) }}</span>
+          {% elif field == 'views' and v.is_photo_post %}
+          <span class="v empty" title="Photo and carousel posts don't have view counts">No views (photo)</span>
+          {% elif not v.metric_is_public(field) %}
+          <span class="v empty" title="{{ v.platform_label }} doesn't make this public — enter it from the creator's insights under Edit stats">Not public</span>
+          {% else %}
+          <span class="v empty">—</span>
+          {% endif %}
         </div>
         {% endfor %}
         <div class="stat-row">
@@ -109,7 +116,7 @@
             <label>Views <input type="text" inputmode="numeric" name="views" value="{{ v.views if v.views is not none else '' }}" placeholder="—" /></label>
             <label>Likes <input type="text" inputmode="numeric" name="likes" value="{{ v.likes if v.likes is not none else '' }}" placeholder="—" /></label>
             <label>Comments <input type="text" inputmode="numeric" name="comments" value="{{ v.comments if v.comments is not none else '' }}" placeholder="—" /></label>
-            <label>Shares <input type="text" inputmode="numeric" name="shares" value="{{ v.shares if v.shares is not none else '' }}" placeholder="—" /></label>
+            <label>Shares / reposts <input type="text" inputmode="numeric" name="shares" value="{{ v.shares if v.shares is not none else '' }}" placeholder="—" /></label>
             <label>Saves <input type="text" inputmode="numeric" name="saves" value="{{ v.saves if v.saves is not none else '' }}" placeholder="—" /></label>
           </div>
           <div style="display:flex; align-items:center; gap:0.6rem; margin-top:0.6rem;">

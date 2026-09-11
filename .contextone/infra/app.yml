@@ -12,6 +12,7 @@ services:
     processes:
       web: 1
       bot: 1
+      refresher: 1
     env:
       SLACK_BOT_TOKEN: "${ENV.SLACK_BOT_TOKEN}"
       SLACK_APP_TOKEN: "${ENV.SLACK_APP_TOKEN}"
