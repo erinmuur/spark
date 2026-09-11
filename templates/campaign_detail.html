@@ -591,7 +591,8 @@
   transition: color 0.15s;
 }
 .cd-metrics-toggle::-webkit-details-marker { display: none; }
-.cd-remove-btn {
+/* [type] out-specifies the global button[type="submit"] styles */
+button.cd-remove-btn[type] {
   all: unset;
   display: block;
   margin-top: 0.35rem;
@@ -600,7 +601,7 @@
   cursor: pointer;
   transition: color 0.15s;
 }
-.cd-remove-btn:hover { color: var(--feedback-error); }
+button.cd-remove-btn[type]:hover { color: var(--feedback-error); }
 .cd-metrics-toggle::before {
   content: '+ ';
   font-weight: 600;
