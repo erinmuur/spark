@@ -1033,6 +1033,16 @@ def campaign_status(id):
 # Campaign Chat (streaming)
 # ---------------------------------------------------------------------------
 
+@app.route('/campaigns/<int:id>/delete', methods=['POST'])
+def campaign_delete(id):
+    """Delete a campaign and its video links. The videos and posts stay in Spark."""
+    campaign = Campaign.query.get_or_404(id)
+    Post.query.filter_by(campaign_id=id).update({'campaign_id': None})
+    db.session.delete(campaign)
+    db.session.commit()
+    return redirect(url_for('campaigns'))
+
+
 @app.route('/campaigns/<int:id>/chat', methods=['POST'])
 def campaign_chat(id):
     campaign = Campaign.query.get_or_404(id)
