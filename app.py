@@ -152,9 +152,6 @@ def migrate_db():
         ('campaign', 'saves', 'INTEGER'),
         ('campaign', 'name', 'TEXT'),
         ('campaign', 'description', 'TEXT'),
-        ('video', 'tribe_scores', 'TEXT'),
-        ('video', 'tribe_suggestions', 'TEXT'),
-        ('video', 'tribe_status', 'TEXT'),
         # Canonical per-upload metrics + UGC post grouping
         ('video', 'views', 'INTEGER'),
         ('video', 'likes', 'INTEGER'),
@@ -554,39 +551,6 @@ def video_reanalyze(id):
     return Response('', status=204, headers={'HX-Redirect': f'/videos/{id}'})
 
 
-@app.route('/videos/<int:id>/tribe', methods=['POST'])
-def video_tribe(id):
-    """Kick off in-app TRIBE v2 inference in a background thread."""
-    video = Video.query.get_or_404(id)
-    if video.tribe_status == 'running':
-        return jsonify({'ok': False, 'error': 'Analysis already running'}), 409
-
-    import tribe
-
-    def _run():
-        with app.app_context():
-            tribe.run_inference(id)
-
-    video.tribe_status = 'running'
-    db.session.commit()
-
-    t = threading.Thread(target=_run, daemon=True)
-    t.start()
-    return jsonify({'ok': True, 'status': 'running'})
-
-
-@app.route('/videos/<int:id>/tribe-status')
-def video_tribe_status(id):
-    """Poll endpoint — returns current tribe_status and scores/suggestions if done."""
-    video = Video.query.get_or_404(id)
-    status = video.tribe_status or 'idle'
-    resp = {'status': status}
-    if status == 'done':
-        resp['scores'] = json.loads(video.tribe_scores) if video.tribe_scores else []
-        resp['suggestions'] = video.tribe_suggestions or ''
-    return jsonify(resp)
-
-
 @app.route('/videos/<int:id>/delete', methods=['POST'])
 def video_delete(id):
     video = Video.query.get_or_404(id)
@@ -597,15 +561,6 @@ def video_delete(id):
     db.session.delete(video)
     db.session.commit()
     return redirect(url_for('inspo'))
-
-
-@app.route('/admin/env-debug')
-def admin_env_debug():
-    import subprocess
-    modal_ver = subprocess.run(['pip', 'show', 'modal'], capture_output=True, text=True).stdout
-    uvx_path = subprocess.run(['which', 'uvx'], capture_output=True, text=True).stdout.strip() or 'not found'
-    routes = sorted([str(r) for r in app.url_map.iter_rules() if 'admin' in str(r)])
-    return jsonify({'modal': modal_ver, 'uvx': uvx_path, 'admin_routes': routes})
 
 
 @app.route('/admin/video-debug')
@@ -761,20 +716,6 @@ def campaign_fetch_comments(id):
 
     threading.Thread(target=_do_fetch, args=(video_ids,), daemon=True).start()
     return jsonify({'queued': len(video_ids)})
-
-
-@app.route('/admin/clear-tribe-errors', methods=['POST'])
-def admin_clear_tribe_errors():
-    """Reset all failed/errored TRIBE statuses back to idle."""
-    from sqlalchemy import or_
-    videos = Video.query.filter(
-        or_(Video.tribe_status.like('error:%'), Video.tribe_status == 'running')
-    ).all()
-    count = len(videos)
-    for v in videos:
-        v.tribe_status = None
-    db.session.commit()
-    return jsonify({'cleared': count})
 
 
 @app.route('/admin/delete-all-videos', methods=['POST'])

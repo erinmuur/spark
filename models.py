@@ -58,9 +58,6 @@ class Video(db.Model):
 
     favorited = db.Column(db.Boolean, default=False)
     video_format = db.Column(db.String(50))  # POV, Talking Head, etc.
-    tribe_scores = db.Column(db.Text)        # JSON list of per-second mean brain activations (TRIBE v2)
-    tribe_suggestions = db.Column(db.Text)   # Claude's editing suggestions from TRIBE analysis
-    tribe_status = db.Column(db.String(50))  # idle / running / done / error:...
     comments_json = db.Column(db.Text)       # JSON array of top comments [{text, likes, username}, ...]
 
     # Canonical per-upload metrics. A view count belongs to the upload, not to
