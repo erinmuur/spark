@@ -1338,6 +1338,44 @@ def campaign_video_metrics(campaign_id, video_id):
     return redirect(url_for('campaign_detail', id=campaign_id))
 
 
+def _remove_videos_from_campaign(campaign, videos):
+    """Detach videos from a campaign without deleting the videos themselves.
+
+    Posts left with no uploads in the campaign drop their campaign too. The
+    legacy inspiration FK is cleared as well — backfill_campaign_videos()
+    would otherwise recreate the link on the next restart.
+    """
+    ids = {v.id for v in videos}
+    if not ids:
+        return
+    CampaignVideo.query.filter(
+        CampaignVideo.campaign_id == campaign.id,
+        CampaignVideo.video_id.in_(ids),
+    ).delete(synchronize_session=False)
+    if campaign.video_id in ids:
+        campaign.video_id = None
+    db.session.flush()
+
+    remaining = {cv.video_id for cv in
+                 CampaignVideo.query.filter_by(campaign_id=campaign.id).all()}
+    for post in {v.post for v in videos if v.post}:
+        if post.campaign_id == campaign.id and not any(v.id in remaining for v in post.videos):
+            post.campaign_id = None
+    db.session.commit()
+
+
+@app.route('/campaigns/<int:campaign_id>/videos/<int:video_id>/remove', methods=['POST'])
+def campaign_video_remove(campaign_id, video_id):
+    """Take a video out of a campaign. The video itself stays in Spark."""
+    campaign = Campaign.query.get_or_404(campaign_id)
+    video = Video.query.get_or_404(video_id)
+    _remove_videos_from_campaign(campaign, [video])
+
+    if request.headers.get('HX-Request'):
+        return '', 204, {'HX-Redirect': url_for('campaign_detail', id=campaign_id)}
+    return redirect(url_for('campaign_detail', id=campaign_id))
+
+
 @app.route('/campaigns/<int:id>/metrics', methods=['POST'])
 def campaign_metrics(id):
     campaign = Campaign.query.get_or_404(id)
@@ -1644,6 +1682,15 @@ def ugc_post_delete(id):
     db.session.delete(post)
     db.session.commit()
     return redirect(url_for('ugc_posts'))
+
+
+@app.route('/ugc/<int:id>/remove-from-campaign', methods=['POST'])
+def ugc_post_remove_from_campaign(id):
+    """Take every upload of a post out of its campaign, keeping the post."""
+    post = Post.query.get_or_404(id)
+    if post.campaign:
+        _remove_videos_from_campaign(post.campaign, post.videos)
+    return redirect(url_for('ugc_post_detail', id=id))
 
 
 @app.route('/ugc/regroup', methods=['POST'])

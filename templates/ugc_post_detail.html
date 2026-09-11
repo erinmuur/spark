@@ -198,8 +198,17 @@
     {% endif %}
 
     <h3 style="margin-bottom:0.6rem;">Danger zone</h3>
+    {% if post.campaign %}
+    <form method="post" action="/ugc/{{ post.id }}/remove-from-campaign"
+          onsubmit="return confirm('Remove this post\'s videos from {{ post.campaign.display_name|e }}? The post and videos stay in Spark.');"
+          style="margin-bottom:0.6rem;">
+      <button type="submit" class="outline" style="color:var(--feedback-error); border-color:var(--feedback-error);">
+        Remove from campaign
+      </button>
+    </form>
+    {% endif %}
     <form method="post" action="/ugc/{{ post.id }}/delete"
-          onsubmit="return confirm('Delete this post? The videos themselves are kept and become ungrouped.');">
+          onsubmit="return confirm('Delete this post grouping? Its videos are kept, ungrouped, and stay in any campaign they belong to. Use Remove from campaign to take them out of a campaign.');">
       <button type="submit" class="outline" style="color:var(--feedback-error); border-color:var(--feedback-error);">
         Delete post
       </button>

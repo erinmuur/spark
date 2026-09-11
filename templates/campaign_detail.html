@@ -255,6 +255,12 @@
           </div>
         </form>
       </details>
+      <button type="button" class="cd-remove-btn"
+              onclick="event.stopPropagation()"
+              hx-post="/campaigns/{{ campaign.id }}/videos/{{ cv.video.id }}/remove"
+              hx-confirm="Remove this video from the campaign? The video itself stays in Spark.">
+        Remove from campaign
+      </button>
     </div>
   </div>
   {% endfor %}
@@ -580,6 +586,16 @@
   transition: color 0.15s;
 }
 .cd-metrics-toggle::-webkit-details-marker { display: none; }
+.cd-remove-btn {
+  all: unset;
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.cd-remove-btn:hover { color: var(--feedback-error); }
 .cd-metrics-toggle::before {
   content: '+ ';
   font-weight: 600;
